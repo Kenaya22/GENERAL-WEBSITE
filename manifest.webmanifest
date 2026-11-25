@@ -1,0 +1,28 @@
+{
+  "name": "Hari ng Kalsada — King of the Road",
+  "short_name": "Hari",
+  "description": "Rides, routes, garages and gear for everyone on the Philippine road.",
+  "id": "./",
+  "start_url": "./?source=app",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#1c0a0f",
+  "theme_color": "#1c0a0f",
+  "lang": "en",
+  "categories": ["travel", "lifestyle", "navigation"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "icons/screenshot-mobile.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Home screen" },
+    { "src": "icons/screenshot-desktop.png", "sizes": "2560x1600", "type": "image/png", "form_factor": "wide", "label": "Desktop view" }
+  ],
+  "shortcuts": [
+    { "name": "Explore", "url": "./#explore", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Routes", "url": "./#routes", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
