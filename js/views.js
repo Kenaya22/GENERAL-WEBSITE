@@ -67,7 +67,7 @@
   }
   function placeRow(p, d) {
     var fee = T.places.fee(p);
-    var price = p.price ? "₱".repeat(p.price) : fee.amount === 0 ? "Free" : fee.amount ? T.peso(fee.amount) : "";
+    var price = p.room ? T.peso(p.room) + "/night" : p.price ? "₱".repeat(p.price) : fee.amount === 0 ? "Free" : fee.amount ? T.peso(fee.amount) : "";
     return '<a class="prow" href="#/place/' + encodeURIComponent(p.id) + '">' + photo(p, "prow__ph") +
       '<div class="prow__body"><h3>' + esc(p.name) + "</h3>" +
       '<p class="prow__sub">' + catChip(p) + '<span class="muted">' + esc(p.area || p.address || "") + "</span></p>" +
@@ -771,9 +771,10 @@
       (p.desc ? '<section class="psec"><h2>About</h2><p>' + esc(p.desc) + "</p></section>" : "") +
       '<section class="psec"><h2>Good to know</h2><dl class="facts">' +
       "<div><dt>" + icon("clock") + "Hours</dt><dd>" + esc(T.places.hoursText(p)) + "</dd></div>" +
-      "<div><dt>" + icon("ticket") + "Entrance</dt><dd>" + (fee.amount == null ? esc(fee.label) : fee.amount === 0 ? "Free" : T.peso(fee.amount) +
+      (p.room ? "<div><dt>" + icon("bed") + "Room rate</dt><dd>About <b>" + T.peso(p.room) + '</b> per night <span class="muted">· ' + esc((p.kind || "Hotel") + ", " + ((C.lodging.filter(function (l) { return l.id === p.tier; })[0] || {}).label || "") + " · approx., check before booking") + "</span></dd></div>" : "") +
+      (p.room ? "" : "<div><dt>" + icon("ticket") + "Entrance</dt><dd>" + (fee.amount == null ? esc(fee.label) : fee.amount === 0 ? "Free" : T.peso(fee.amount) +
         (fee.discounted ? ' <span class="pill pill--ok">' + esc(trav.label) + ' rate</span> <s class="muted">' + T.peso(fee.regular) + "</s>" : (p.fee && p.fee.discounted < p.fee.regular ? ' <span class="muted">(' + T.peso(p.fee.discounted) + " student/senior/PWD)</span>" : "")) +
-        (fee.note ? ' <span class="muted">· ' + esc(fee.note) + "</span>" : "")) + "</dd></div>" +
+        (fee.note ? ' <span class="muted">· ' + esc(fee.note) + "</span>" : "")) + "</dd></div>") +
       (p.price ? "<div><dt>" + icon("wallet") + "Budget</dt><dd>" + "₱".repeat(p.price) + ' <span class="muted">· about ' + T.peso(C.mealBudget[p.price]) + " per person</span></dd></div>" : "") +
       (p.visit ? "<div><dt>" + icon("eye") + "Time needed</dt><dd>About " + T.dur(p.visit) + "</dd></div>" : "") +
       (p.phone ? "<div><dt>" + icon("phone") + "Phone</dt><dd><a class=\"link\" href=\"tel:" + esc(p.phone.replace(/\s/g, "")) + '">' + esc(p.phone) + "</a></dd></div>" : "") +
@@ -1049,7 +1050,7 @@
     var dr = draft();
     var trav = C.travelerTypes.filter(function (t) { return t.id === dr.type; })[0] || T.traveler();
     return T.planner.build({ from: dr.from, stops: dr.stops, depart: draftDepart(dr), traveler: trav, pax: dr.pax, ret: dr.ret, homeBy: dr.homeBy, dayEnd: dr.days > 1 ? dr.dayEnd || "18:00" : null,
-      days: dr.days, lodging: dr.lodging, activities: dr.activities, optionId: dr.optionId, include: includeOverride !== undefined ? includeOverride : dr.include, weather: weather });
+      days: dr.days, lodging: dr.lodging, stayPick: dr.stayPick || null, activities: dr.activities, optionId: dr.optionId, include: includeOverride !== undefined ? includeOverride : dr.include, weather: weather });
   }
   T.submits.plan = function () {
     var dr = draft();
@@ -1094,14 +1095,47 @@
         (l.mode !== "walk" && l.mode !== "car" && l.to ? '<p class="tl__off">' + icon("flag") + "<span>Get off at <b>" + esc(l.to.name) + "</b></span></p>" : "") +
         "<p>" + esc(T.planner.legName(l)) + " · " + T.dur(l.minutes) + (l.km > 0.2 ? " · " + T.km(l.km) : "") +
         (l.mode === "walk" ? "" : " · <b>" + (l.perCar ? T.peso(l.fareReg) + " per car" : l.fare ? T.peso(l.fare) : "—") + "</b>" + (l.saved > 0 ? ' <s class="muted">' + T.peso(l.fareReg) + "</s>" : "")) +
-        (l.rush ? ' <span class="pill pill--warn">rush hour</span>' : "") + "</p>" +
-        (l.tip ? '<p class="tl__tip">' + esc(l.tip) + "</p>" : "") +
+        (l.rush ? ' <span class="pill pill--warn">rush hour</span>' : "") + (l.reported ? ' <span class="pill pill--ok">' + icon("check") + "reported fare</span>" : "") + "</p>" +
+        (l.tip ? '<p class="tl__tip">' + esc(l.tip) + "</p>" : "") + reportBtn(l) +
         (l.approx ? '<p class="tl__approx">' + icon("info") + "Common commuter route — confirm with the driver or terminal staff.</p>" : "") +
         (opts.check ? '<label class="tl__check"><input type="checkbox" data-input="trip-check" data-key="' + key + '"' + (done ? " checked" : "") + "><span>Done</span></label>" : "") +
         "</div></li>";
     }).join("") +
       '<li class="tl__item tl--arrive"><span class="tl__time">' + T.time(new Date(o.arrive)) + '</span><span class="tl__ic">' + icon(opts.endIcon || "pin") + '</span><div class="tl__body"><strong>' + esc(opts.endLabel || "Arrive at " + (opts.toName || "destination")) + "</strong></div></li></ol>";
   }
+  /* "Report real fare" — travelers record what they actually paid and the signboard */
+  function reportBtn(l) {
+    if (!l || l.mode === "walk" || l.mode === "car" || !l.from || !l.to) return "";
+    return '<button class="report-btn" type="button" data-action="report-fare" data-mode="' + esc(l.mode) + '" data-from="' + esc(l.from.name) + '" data-to="' + esc(l.to.name) + '" data-est="' + (l.estimate || l.fareReg || 0) + '" data-sign="' + esc(l.sign || "") + '">' +
+      icon("edit") + (l.reported ? "Update real fare" : "Report real fare") + "</button>";
+  }
+  T.actions["report-fare"] = function (el) {
+    var d = el.dataset, ride = (T.planner.modeName[d.mode] || "Ride").toLowerCase();
+    T.sheet.open("Report the real fare", '<form class="form" data-submit="report-fare" data-mode="' + esc(d.mode) + '" data-from="' + esc(d.from) + '" data-to="' + esc(d.to) + '" data-est="' + esc(d.est) + '">' +
+      '<p class="muted">' + esc(ride.charAt(0).toUpperCase() + ride.slice(1)) + ": <b>" + esc(d.from) + "</b> → <b>" + esc(d.to) + "</b>. Our estimate is " + T.peso(Number(d.est)) + ". Tara will use your fare next time this route is planned.</p>" +
+      '<label class="field"><span class="field__label">Regular fare paid (₱, before any discount)</span><input class="input" name="fare" type="number" inputmode="decimal" min="1" step="0.25" required autofocus placeholder="e.g. ' + Math.round(Number(d.est) || 20) + '"></label>' +
+      (d.mode === "bus" || d.mode === "jeep" ? '<label class="field"><span class="field__label">Signboard (what\'s written on the ' + esc(ride) + ')</span><input class="input" name="sign" placeholder="e.g. LAWTON / via SLEX" value="' + esc(d.sign) + '"></label>' : "") +
+      '<label class="field"><span class="field__label">Notes (optional)</span><input class="input" name="note" placeholder="e.g. board at the gas station, aircon bus"></label>' +
+      '<button class="btn btn--primary btn--block" type="submit">' + icon("check") + "Save real fare</button></form>");
+  };
+  T.submits["report-fare"] = function (form) {
+    var d = form.dataset, fare = Number(form.fare.value);
+    if (!fare || fare < 1) { form.fare.focus(); return; }
+    T.fareReports.add({ key: T.fareReports.key(d.mode, d.from, d.to), mode: d.mode, from: d.from, to: d.to, estimate: Number(d.est) || null, fare: fare,
+      sign: form.sign ? form.sign.value.trim().toUpperCase() : "", note: form.note.value.trim() });
+    T.sheet.close();
+    T.toast("Real fare saved", "Thanks! It replaces our estimate for this ride.", "check");
+    if (T.router.parse().name === "plan" && T.state.plan) { T.state.plan = buildFromDraft(T.state.weather); renderPlan(T.state.plan, false); }
+  };
+  T.actions["share-fares"] = function () {
+    var L = T.fareReports.all().map(function (r) {
+      return "• " + (T.planner.modeName[r.mode] || r.mode) + ": " + r.from + " → " + r.to + " = " + T.peso(r.fare) + (r.sign ? " · signboard “" + r.sign + "”" : "") + (r.note ? " · " + r.note : "") + " (" + T.date(new Date(r.at)) + ")";
+    });
+    var text = "Real fares I checked (Tara):\n" + L.join("\n");
+    if (navigator.share) navigator.share({ title: "Real fares", text: text }).catch(function () {});
+    else if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { T.toast("Copied", "Paste it in Messenger or Viber.", "check"); });
+  };
+  T.actions["delete-fare"] = function (el) { T.fareReports.remove(Number(el.dataset.at)); T.router.resolve(); };
   function moveText(mv) {
     if (!mv || mv.minutes < 1) return "";
     if (mv.mode === "walk") return mv.minutes + " min walk";
@@ -1130,10 +1164,12 @@
         body = "<strong>" + esc(s.name) + "</strong><p>" + T.time(new Date(s.start)) + " – " + T.time(new Date(s.end)) + " · " + T.dur(dur) + " · " + money + "</p>" +
           '<ul class="tl__legs">' + s.ride.legs.map(function (l) {
             return "<li>" + icon(modeIcon[l.mode]) + "<span><b>" + T.time(new Date(l.start)) + "</b> " + esc(l.text) + (l.mode !== "walk" && l.fare ? " · " + T.peso(l.fare) : "") +
-              (l.board ? '<small>' + esc(l.board) + "</small>" : "") + (l.mode !== "walk" && l.mode !== "car" ? "<small>Get off at " + esc(l.to.name) + "</small>" : "") + "</span></li>";
+              (l.board ? '<small>' + esc(l.board) + "</small>" : "") + (l.mode !== "walk" && l.mode !== "car" ? "<small>Get off at " + esc(l.to.name) + "</small>" : "") + reportBtn(l) + "</span></li>";
           }).join("") + "</ul>";
       } else if (s.kind === "stay") {
-        body = "<strong>" + esc(s.name) + "</strong><p>Check in around " + T.time(new Date(s.start)) + " · " + money + (s.rooms > 1 ? " · " + s.rooms + " rooms" : "") + "</p>";
+        body = (s.hotelId ? '<a class="tl__name" href="#/place/' + encodeURIComponent(s.hotelId) + '">' + esc(s.name) + "</a>" : "<strong>" + esc(s.name) + "</strong>") +
+          "<p>Check in around " + T.time(new Date(s.start)) + " · " + money + (s.rooms > 1 ? " · " + s.rooms + " rooms" : "") + " · " + T.peso(s.room) + "/room/night</p>" +
+          (opts.edit ? '<button class="btn btn--sm btn--ghost tl__change" type="button" data-action="pick-stay" data-day="' + day.index + '">' + icon("bed") + (s.hotelId ? "Change stay" : "Choose a real stay") + "</button>" : "");
       } else {
         body = (p ? '<a class="tl__name" href="#/place/' + encodeURIComponent(p.id) + '">' + esc(s.name) + "</a>" : "<strong>" + esc(s.name) + "</strong>") +
           "<p>" + T.time(new Date(s.start)) + " – " + T.time(new Date(s.end)) + " · " + T.dur(dur) + (money ? " · " + money : "") + "</p>" +
@@ -1313,7 +1349,7 @@
         (multi ? '<p class="day-card__stops">' + icon("pin") + esc(d.stops.map(function (s) { return s.name; }).join(" → ")) + "</p>" : "") +
         (opts.edit && d.index === plan.days.length - 1 ? homeNote(plan) : "") +
         (opts.edit ? fitBlock(d.fit, d.end, endVerb(plan, d.index), d.index) : "") +
-        (d.steps.length ? dayTimeline(d, { check: opts.check, done: plan.done }) : '<p class="muted">No featured spots here yet. Explore nearby places after you arrive.</p>') +
+        (d.steps.length ? dayTimeline(d, { check: opts.check, done: plan.done, edit: opts.edit }) : '<p class="muted">No featured spots here yet. Explore nearby places after you arrive.</p>') +
         (d.skipped.length ? '<p class="fine">' + d.skipped.map(function (s) { return esc(s.place.name) + ": " + esc(s.why); }).join(" · ") + "</p>" : "") + "</div>";
     });
     if (plan.back) html += '<div class="card"><div class="sec-head"><h3>' + icon("home") + " Going home</h3><span class=\"muted\">" + T.dur(plan.back.minutes) + " · " + T.peso(plan.back.fare) + "/person</span></div>" +
@@ -1358,6 +1394,32 @@
     out.innerHTML = html;
     if (scroll) out.scrollIntoView({ behavior: T.reduceMotion ? "auto" : "smooth", block: "start" });
   }
+  T.actions["pick-stay"] = function (el) {
+    var plan = T.state.plan, di = Number(el.dataset.day), d = plan.days[di];
+    var st = d.steps.filter(function (x) { return x.kind === "stay"; })[0];
+    var near = T.places.query({ near: st.at, within: 20, cat: "stay" });
+    var body = T.sheet.open("Night " + (di + 1) + " · where to stay",
+      '<p class="muted">Places near ' + esc(st.at.name || "your last stop") + ". Rates are approximate per room per night (sleeps 2) — check before booking.</p>" +
+      '<div class="rows">' + near.map(function (x) {
+        var p = x.p, on = p.id === st.hotelId, tier = (C.lodging.filter(function (l) { return l.id === p.tier; })[0] || {}).label || "";
+        return '<button class="prow prow--btn' + (on ? " is-on" : "") + '" type="button" data-action="set-stay" data-day="' + di + '" data-id="' + esc(p.id) + '">' + photo(p, "prow__ph") +
+          '<span class="prow__body"><h3>' + esc(p.name) + '</h3><span class="prow__meta">' + ratingInline(p) + '<span class="dot"></span><span>' + T.km(x.d) + " away</span></span>" +
+          '<span class="prow__meta"><b>' + T.peso(p.room) + "</b>/night<span class=\"dot\"></span>" + esc(tier + " " + (p.kind || "")) + "</span></span>" + (on ? icon("check", "prow__go") : icon("chev-r", "prow__go")) + "</button>";
+      }).join("") + "</div>" +
+      (near.length ? "" : '<p class="muted">No listed places to stay near here yet.</p>') +
+      '<button class="btn btn--ghost btn--block" type="button" data-action="set-stay" data-day="' + di + '" data-id="none">Just estimate (' + esc(plan.lodging.label) + ")</button>" +
+      '<a class="btn btn--ghost btn--block" target="_blank" rel="noopener" href="https://www.google.com/maps/search/hotels/@' + st.at.lat + "," + st.at.lng + ',14z">' + icon("search") + "More on Google Maps</a>", { size: "tall" });
+    T.photos.hydrate(body);
+  };
+  T.actions["set-stay"] = function (el) {
+    var dr = draft();
+    dr.stayPick = dr.stayPick || {};
+    dr.stayPick[el.dataset.day] = el.dataset.id;
+    T.sheet.close();
+    T.state.plan = buildFromDraft(T.state.weather);
+    renderPlan(T.state.plan, false);
+    T.toast("Stay updated", el.dataset.id === "none" ? "Using a price estimate." : T.places.get(el.dataset.id).name, "bed");
+  };
   T.renderPlanTimeline = { legs: legsTimeline, day: dayTimeline, budget: budgetCard, reminders: reminderList };
 
   T.actions["save-trip"] = function () {
@@ -1547,6 +1609,15 @@
       '<button class="pick-item" type="button" data-action="set-home">' + icon("home") + "<span><strong>Home</strong><small>" + esc(u.home ? u.home.label : "Not set") + "</small></span>" + icon("edit") + "</button></div>" +
       '<div class="card"><div class="sec-head"><h3>' + icon("heart") + " Saved places</h3><span class=\"muted\">" + favs.length + "</span></div>" +
       (favs.length ? '<div class="rows">' + favs.map(function (p) { return placeRow(p, T.geo.distance(here, p)); }).join("") + "</div>" : '<p class="muted">Tap the heart on any place to save it here.</p>') + "</div>" +
+      (function () {
+        var fr = T.fareReports.all().slice().reverse();
+        return '<div class="card"><div class="sec-head"><h3>' + icon("wallet") + ' Real fares you reported</h3><span class="muted">' + fr.length + "</span></div>" +
+          (fr.length ? '<ul class="fare-list">' + fr.slice(0, 12).map(function (r) {
+            return "<li><span><b>" + esc(r.from) + " → " + esc(r.to) + "</b><small>" + esc(T.planner.modeName[r.mode] || r.mode) + " · " + T.peso(r.fare) + (r.estimate ? " (est. " + T.peso(r.estimate) + ")" : "") + (r.sign ? " · “" + esc(r.sign) + "”" : "") + "</small></span>" +
+              '<button class="icon-btn" type="button" data-action="delete-fare" data-at="' + r.at + '" aria-label="Delete">' + icon("trash") + "</button></li>";
+          }).join("") + "</ul>" + '<button class="btn btn--ghost btn--sm" type="button" data-action="share-fares">' + icon("share") + "Share my fare reports</button>"
+            : '<p class="muted">On any trip plan, tap <b>Report real fare</b> under a ride to save what you actually paid and the signboard. Tara uses it next time, and you can share all your reports.</p>') + "</div>";
+      })() +
       '<div class="card"><h3 class="h3">' + icon("sparkle") + " App</h3>" +
       '<label class="switch"><span><strong>' + icon("moon") + ' Dark mode</strong><small>Easier on the eyes at night</small></span><input type="checkbox" data-input="theme"' + (dark ? " checked" : "") + '><span class="switch__ui"></span></label>' +
       '<button class="pick-item" type="button" data-action="notif">' + icon("bell") + "<span><strong>Notifications</strong><small>" + (notif === "granted" ? "Allowed" : notif === "denied" ? "Blocked in browser settings" : notif === "unsupported" ? "Not supported on this browser" : "Tap to allow trip reminders") + "</small></span></button>" +

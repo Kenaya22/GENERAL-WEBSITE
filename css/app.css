@@ -986,3 +986,18 @@ textarea.input { resize: vertical; min-height: 100px; }
 svg.studio-mark { display: block; width: 116px; height: 116px; background: none; border-radius: 0; box-shadow: none; filter: drop-shadow(0 0 1.5px rgba(251,245,234,.55)) drop-shadow(0 18px 30px rgba(0,0,0,.35)); }
 svg.studio-mark--sm { width: 38px; height: 38px; filter: none; flex: none; }
 .about__logo { width: 200px; height: 200px; border-radius: var(--r-lg); margin: -10px 0 -20px; }
+
+/* real fares + real stays */
+.report-btn { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 4px 10px; border-radius: var(--r-pill); border: 1px dashed var(--line-2); font-size: 12px; font-weight: 600; color: var(--text-2); }
+.report-btn .i { width: 13px; height: 13px; }
+.report-btn:hover { color: var(--brand); border-color: var(--brand); }
+.tl__legs .report-btn { display: inline-flex; width: auto; }
+.pill .i { width: 11px; height: 11px; }
+.tl__change { margin-top: 8px; }
+.prow--btn { width: calc(100% + 20px); text-align: left; border: 1.5px solid transparent; }
+.prow--btn.is-on { border-color: var(--brand); background: var(--brand-soft); }
+.prow--btn .prow__meta b { color: var(--text); }
+.fare-list { display: grid; gap: 4px; margin-bottom: var(--s-3); }
+.fare-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.fare-list li span { flex: 1; display: grid; min-width: 0; font-size: var(--fs-sm); }
+.fare-list small { color: var(--text-3); }

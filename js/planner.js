@@ -162,6 +162,18 @@
   }
 
   /* ---------- timing + fares for a sequence of legs ---------- */
+  /* ---------- real fares reported by travelers ---------- */
+  T.fareReports = {
+    all: function () { return T.store.get("tara.fareReports", []); },
+    key: function (mode, from, to) { return [mode, String(from || "").toLowerCase(), String(to || "").toLowerCase()].join("|"); },
+    add: function (r) { var l = this.all(); r.at = Date.now(); l.push(r); T.store.set("tara.fareReports", l); },
+    remove: function (at) { T.store.set("tara.fareReports", this.all().filter(function (r) { return r.at !== at; })); },
+    lookup: function (l) {
+      if (!l.from || !l.to) return null;
+      var k = this.key(l.mode, l.from.name, l.to.name);
+      return this.all().filter(function (r) { return r.key === k; }).pop() || null;
+    },
+  };
   function finalize(legs, depart, trav, pax) {
     var t = new Date(depart), fare = 0, fareReg = 0, carCost = 0;
     legs.forEach(function (l) {
@@ -173,6 +185,11 @@
       l.end = new Date(t);
       var rate = l.discount === "road" ? trav.road : l.discount === "rail" ? trav.rail : 0;
       if (l.mode === "grab") l.fareReg = Math.ceil((F.grab.base + F.grab.perKm * l.km + F.grab.perMin * l.ride * f) / 5) * 5;
+      var rep = l.mode !== "walk" && l.mode !== "car" ? T.fareReports.lookup(l) : null;
+      if (rep) {
+        l.estimate = l.fareReg; l.fareReg = rep.fare; l.reported = true;
+        if (rep.sign && (l.mode === "bus" || l.mode === "jeep")) { l.sign = rep.sign; l.text = (l.mode === "bus" ? "Ride a bus" : "Ride a jeepney") + " with signboard “" + rep.sign + "”"; }
+      }
       l.fareReg = Math.round(l.fareReg);
       l.fare = Math.round(l.fareReg * (1 - rate)); // fares are paid in whole pesos
       l.saved = l.fareReg - l.fare;
@@ -330,7 +347,7 @@
     if (d < 4) return trikeLeg(a, b);
     return jeepLeg(a, b);
   }
-  function notEat(p) { return p.cat !== "food" && p.cat !== "cafe" && !p.hub; }
+  function notEat(p) { return p.cat !== "food" && p.cat !== "cafe" && p.cat !== "stay" && !p.hub; }
   // all things to do around a stop (city-wide for a city, walking area for a place), minus places already used
   function poolFor(to, used, home, radius) {
     used = used || {};
@@ -702,10 +719,19 @@
           var next = new Date(start); next.setDate(start.getDate() + 1);
           var dayEnd = t > end ? t : end;
           var rooms = Math.ceil(pax / 2);
-          stay = { kind: "stay", name: tier.label + " stay near " + areaName(here), tier: tier.id, start: dayEnd, end: next,
-            at: pt(here, areaName(here)), cost: Math.round(tier.room * rooms / pax), room: tier.room, rooms: rooms,
-            tip: tier.desc + " · about " + T.peso(tier.room) + " per room per night (sleeps 2)." };
+          // a real hotel / inn / resort near where the day ends: the traveler's pick, else the nearest at their price level
+          var pick = input.stayPick && input.stayPick[d], hotel = null;
+          var nearStays = T.places.query({ near: here, within: 15, cat: "stay" });
+          if (pick && pick !== "none") hotel = T.places.get(pick);
+          else if (!pick) { var same = nearStays.filter(function (x) { return x.p.tier === tier.id; })[0]; hotel = same ? same.p : null; }
+          var room = hotel ? hotel.room : tier.room;
+          stay = { kind: "stay", name: hotel ? hotel.name : tier.label + " stay near " + areaName(here), tier: hotel ? hotel.tier : tier.id, start: dayEnd, end: next,
+            at: hotel ? pt(hotel) : pt(here, areaName(here)), cost: Math.round(room * rooms / pax), room: room, rooms: rooms, hotelId: hotel ? hotel.id : null,
+            options: nearStays.length,
+            tip: hotel ? (hotel.kind || "Hotel") + " · about " + T.peso(room) + " per room per night (approx. — check the rate before booking)."
+              : tier.desc + " · about " + T.peso(tier.room) + " per room per night (sleeps 2)." + (nearStays.length ? " Tap Change to pick a real place." : "") };
           steps.push(stay);
+          if (hotel) here = pt(hotel); // the next day starts from the hotel
         }
         days.push({ index: d, date: start, start: d === 0 ? depart : start, end: end, stops: dayStops, steps: steps, skipped: skipped, pool: pool, fit: actOn ? fit : null, endPoint: here, stay: stay });
       }
