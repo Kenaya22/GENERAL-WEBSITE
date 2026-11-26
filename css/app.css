@@ -972,3 +972,12 @@ textarea.input { resize: vertical; min-height: 100px; }
 @media (prefers-reduced-motion: reduce) {
   .hero-cloud, .hero-jeep, .hero-sun, .splash__logo, .cat-tile span { animation: none !important; }
 }
+
+/* "Be home by" */
+.home-note { display: flex; gap: 6px; align-items: flex-start; margin-top: -4px; }
+.home-note .i { width: 15px; height: 15px; flex: none; color: var(--brand); }
+.home-by { display: flex; gap: 10px; align-items: flex-start; margin: var(--s-3) 0; padding: 12px 14px; border-radius: var(--r-md); background: var(--brand-soft); font-size: var(--fs-sm); color: var(--text-2); }
+.home-by > .i { color: var(--brand); flex: none; }
+.home-by b { color: var(--text); }
+.home-by--late { background: rgba(229,72,77,.08); }
+.home-by--late > .i { color: var(--danger); }

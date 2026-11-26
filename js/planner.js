@@ -214,6 +214,23 @@
     return null;
   }
 
+  /* two provincial towns on different sides of Metro Manila (e.g. Calamba → Tanay):
+     ride into a shared Metro terminal, then out again */
+  function viaTerminal(from, to) {
+    var near = function (p) { return TR.provincialStops.slice().sort(function (a, b) { return dist(p, a) - dist(p, b); })[0]; };
+    var sa = near(from), sb = near(to);
+    if (!sa || !sb || sa === sb || dist(from, sa) > 12 || dist(to, sb) > 12) return null;
+    var shared = TR.metroTerminals.filter(function (t) { return (sa.terminals || []).indexOf(t.id) > -1 && (sb.terminals || []).indexOf(t.id) > -1; });
+    if (!shared.length) return null;
+    var term = shared.sort(function (a, b) { return dist(sa, a) + dist(a, sb) - dist(sa, b) - dist(b, sb); })[0];
+    if (dist(sa, term) + dist(term, sb) > dist(from, to) * 2.2) return null;
+    var legs = (dist(from, sa) < 0.35 ? [] : [localLeg(from, sa)])
+      .concat([busLeg(sa, term, term.sign, sa.how, term.name),
+        busLeg(term, sb, sb.sign, "Board at " + term.name + ". Look for “" + sb.sign + "” on the signboard.", sb.area)])
+      .concat(dist(sb, to) < 0.35 ? [] : [localLeg(sb, to)]);
+    legs.forEach(function (l) { if (l.mode === "bus") l.approx = true; });
+    return { via: term.name, legs: legs };
+  }
   function candidates(from, to) {
     var d = dist(from, to);
     var out = [];
@@ -255,6 +272,8 @@
         out.push({ kind: "commute", via: term.name, legs: (fm ? metroLink(from, pt(term), true).concat([busLeg(term, stop, stop.sign, "", stop.area)]).concat([localLeg(stop, to)])
           : [localLeg(from, stop), busLeg(stop, term, term.sign, stop.how, term.name)].concat(metroLink(pt(term), to, true))) });
       });
+    } else if (d > 22 && viaTerminal(from, to)) {
+      out.push({ kind: "commute", via: viaTerminal(from, to).via, legs: viaTerminal(from, to).legs, approx: true });
     } else if (d > 22) {
       {
         var b = busLeg(pt(from, "the nearest bus stop or terminal"), pt(to, "the terminal near " + to.name), "UV EXPRESS / BUS", "Ask at the nearest terminal for a van or bus heading to " + to.name + ".", to.name);
@@ -537,7 +556,30 @@
 
     /* input: { from, stops:[...] (or to), depart, traveler, pax, ret, homeBy, days, lodging,
                 activities, optionId, include: { dayIndex: [placeIds in order] } } */
+    /* With the trip home on, homeBy is the time you want to BE HOME. We work
+       backwards: estimate the ride home, leave the last stop early enough,
+       then check the real arrival and adjust (a couple of passes). */
     build: function (input) {
+      if (!input.ret) return this._build(input);
+      var nDays = Math.max(1, Math.min(C.maxDays || 7, Number(input.days) || 1));
+      var target = new Date(input.depart);
+      target.setDate(target.getDate() + nDays - 1);
+      var hb = T.hm(input.homeBy || "19:00");
+      target.setHours(Math.floor(hb / 60), hb % 60, 0, 0);
+      var lastEnd = T.addMin(target, -120), plan = null;
+      for (var pass = 0; pass < 3; pass++) {
+        plan = this._build(Object.assign({}, input, { lastEnd: lastEnd }));
+        if (!plan.back) break;
+        var diff = Math.round((new Date(plan.back.arrive) - target) / 60000);
+        if (Math.abs(diff) <= 5 || plan.leaveAdjusted) break;
+        lastEnd = T.addMin(lastEnd, -diff);
+        lastEnd.setMinutes(Math.floor(lastEnd.getMinutes() / 5) * 5, 0, 0);
+      }
+      plan.homeTarget = target;
+      plan.homeLate = plan.back ? Math.max(0, Math.round((new Date(plan.back.arrive) - target) / 60000)) : 0;
+      return plan;
+    },
+    _build: function (input) {
       var self = this;
       var trav = input.traveler || T.traveler();
       var pax = input.pax || 1;
@@ -547,7 +589,8 @@
       var actOn = input.activities !== false;
       var include = input.include && typeof input.include === "object" && !Array.isArray(input.include) ? input.include : (Array.isArray(input.include) ? { 0: input.include } : null);
       var depart = new Date(input.depart);
-      var eh = T.hm(input.homeBy || "17:00");
+      // intermediate days end at dayEnd (or homeBy); the last day can be set exactly with lastEnd
+      var eh = T.hm(input.dayEnd || input.homeBy || "17:00");
 
       var opts = this.options(input.from, stops[0], depart, trav, pax);
       var option = opts.filter(function (o) { return o.id === input.optionId; })[0] || opts[0];
@@ -566,6 +609,7 @@
       for (var d = 0; d < nDays; d++) {
         var start = new Date(depart); start.setDate(depart.getDate() + d);
         var end = new Date(start); end.setHours(Math.floor(eh / 60), eh % 60, 0, 0);
+        if (d === nDays - 1 && input.lastEnd) end = new Date(input.lastEnd);
         var dayStops = assign[d].map(function (i) { return stops[i]; });
         var steps = [], skipped = [], pool = [], notFit = [], suggestions = [];
         var fit = { available: 0, used: 0, free: 0, overBy: 0 };
@@ -673,7 +717,7 @@
         v: 2, id: input.id || "t_" + T.uid(),
         from: input.from, fromHome: !input.from.placeId, to: stops[stops.length - 1], stops: stops,
         name: stops.map(function (s) { return s.name; }).join(" → "),
-        traveler: trav, pax: pax, ret: !!input.ret, homeBy: input.homeBy, leaveAt: leaveAt, leaveAdjusted: leaveAdjusted,
+        traveler: trav, pax: pax, ret: !!input.ret, homeBy: input.homeBy, dayEnd: input.dayEnd || null, leaveAt: leaveAt, leaveAdjusted: leaveAdjusted,
         nights: nights, lodging: { id: tier.id, label: tier.label },
         activitiesOn: actOn, include: include,
         options: opts, option: option, back: back, days: days, fees: fees,

@@ -20,6 +20,32 @@
 - **Trips**: save plans, tick off steps as you go, turn on reminders, **download a calendar file** with alarms, share the itinerary, or open it in Google Maps.
 - **Profile**: traveler type, home and current location, saved places, dark mode, notifications, install the app, log out, and delete your data.
 
+### New in version 4
+- **New logo**: a map pin with a rising sun and a road, on deep teal. Used for the app icon, home-screen icon, loading screen and browser tab (`icons/logo.svg`).
+- **"Arrive home by"**: with the trip home on, you set when you want to **arrive home** (not when to leave). Tara works backwards and tells you when to leave your last stop, or warns you if it's not possible. Multi-day trips also have an "End each day at" time.
+- **Online accounts and shared reviews** (optional, free, see *Turn on online accounts* below): log in on any phone and see your trips, saved places and profile photo; everyone sees everyone's reviews and photos; only the author can edit or delete theirs.
+- **More places and cities**: Tanay (Daranak Falls, Masungi, Regina Rica, sea-of-clouds viewpoints), Angono (Petroglyphs, Blanco Family Museum), Batangas City, Lipa, Lucena, Tayabas, Imus, Cavinti (Lake Caliraya), Marikina and more, with bus routes such as Calamba → Lucena, Calamba → Tanauan → Batangas City, and Calamba → Cubao → Tanay.
+
+## Turn on online accounts (free, about 10 minutes)
+
+Without this, accounts, trips and reviews stay on each phone. With it, they're online.
+
+1. Go to **supabase.com**, sign up (free) and click **New project**. Pick any name and password, and the **Southeast Asia (Singapore)** region.
+2. When it's ready, open **SQL Editor → New query**, paste everything from `supabase/schema.sql`, and click **Run**.
+3. Open **Project Settings → API**. Copy the **Project URL** and the **anon public** key.
+4. In `js/config.js`, paste them into `backend`:
+   ```js
+   backend: {
+     supabaseUrl: "https://xxxx.supabase.co",
+     supabaseKey: "eyJhbGciOi...",
+   },
+   ```
+   The anon key is meant to be public; the rules in `schema.sql` make sure people can only change their own data.
+5. Optional: in **Authentication → Providers → Email**, turn off **Confirm email** so new accounts can log in right away. If you leave it on, Tara tells new users to check their email first.
+6. Bump `VERSION` in `sw.js` and publish.
+
+Older device-only accounts move online automatically the first time they log in. Older reviews saved on a phone stay visible on that phone.
+
 ### New in version 3
 - **Launch screens.** A loading screen, then the **K & A Studios** creator page, then the app (tap to skip; shown once per visit). There's also an About page made by K & A Studios.
 - **Multi-day trips.** Pick *Day tour* or *Multi-day* (2–7 days). Each day has its own schedule with new places (no repeats), one lunch, and an overnight stay near where the day ends: Budget, Mid-range or Comfort, added to the budget. The last day ends with the trip home.
@@ -54,7 +80,7 @@
 
 All of these are free and need no API keys.
 
-**Accounts, trips, reviews, photos and saved places are stored on the visitor's own device.** Reviews are visible to everyone who uses Tara on that same device or browser; to let travelers on other phones see each other's reviews, connect a backend. To sync between devices later, connect a free backend such as Firebase or Supabase in `js/services.js` (`T.auth` and `T.data`).
+**By default, accounts, trips, reviews, photos and saved places are stored on the visitor's own device.** Turn on online accounts (above) to sync them and share reviews with everyone. To sync between devices later, connect a free backend such as Firebase or Supabase in `js/services.js` (`T.auth` and `T.data`).
 
 > Guide scores, hours, entrance fees and fares in `config.js` are estimates for planning. Update them as prices change.
 
@@ -66,7 +92,9 @@ css/tokens.css        design tokens: colors, fonts, spacing, radii, motion
 css/app.css           all components and layouts
 js/config.js          destinations (province → city), places, rail lines, terminals, routes, fares, discounts
 js/core.js            helpers, router, toasts, sheets, place artwork
-js/services.js        accounts, location, places, photos, weather
+js/services.js        accounts, location, places, photos, weather, sync
+js/cloud.js           optional online backend (Supabase): login, synced data, shared reviews
+supabase/schema.sql   database tables and security rules for the online backend
 js/planner.js         route, fare and itinerary engine, reminders, calendar export
 js/views.js           screens: welcome, sign-up, home, explore, place, plan, trips, profile, about
 js/main.js            startup, navigation, reminders, install, offline

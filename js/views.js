@@ -256,7 +256,7 @@
       '<p class="fine" id="type-note">' + typeNote("regular") + "</p></div>" +
       '<p class="form__error" role="alert" hidden></p>' +
       '<button class="btn btn--primary btn--block" type="submit">Sign up</button>' +
-      '<p class="fine center">Your account is saved securely on this device.</p>' +
+      '<p class="fine center">' + (T.cloud && T.cloud.enabled() ? "Your account works on any phone — log in to see your trips everywhere." : "Your account is saved securely on this device.") + "</p>" +
       '<p class="center">Already have an account? <a class="link" href="#/login">Log in</a></p>' +
       "</form>"), { auth: true });
   };
@@ -296,7 +296,11 @@
     busy(btn, true, "Creating account…");
     T.auth.signup({ name: form.name.value, email: form.email.value, password: form.password.value, type: (form.querySelector('[name="signup-type"]:checked') || {}).value })
       .then(function (u) { T.toast("Welcome, " + u.name.split(" ")[0] + "!", "Your account is ready.", "check"); T.router.go("setup", true); })
-      .catch(function (err) { busy(btn, false); formError(form, err.message); });
+      .catch(function (err) {
+        busy(btn, false);
+        if (err.confirm) { T.toast("Almost done!", err.message, "check"); T.router.go("login", true); return; }
+        formError(form, err.message);
+      });
   };
 
   T.views.login = function () {
@@ -778,11 +782,15 @@
       (p.tips && p.tips.length ? '<section class="psec"><h2>Tips</h2><ul class="tips">' + p.tips.map(function (t) { return "<li>" + icon("sparkle") + esc(t) + "</li>"; }).join("") + "</ul></section>" : "") +
       '<section class="psec"><h2>Location</h2><div class="mini-map" id="place-map"></div></section>' +
       '<section class="psec"><div class="sec-head"><h2>Reviews</h2><button class="btn btn--sm btn--ghost" type="button" data-action="review" data-id="' + esc(p.id) + '">' + icon("chat") + "Write a review</button></div>" +
-      (reviews.length ? '<div class="reviews">' + reviews.map(function (rv) { return reviewHtml(p, rv); }).join("") + "</div>" : '<p class="muted">No reviews yet. Been here? Share your experience and photos to help other travelers.</p>') + "</section>" +
+      '<div id="reviews-box">' + reviewsBox(p, reviews) + "</div></section>" +
       (nearby.length ? '<section class="psec"><div class="sec-head"><h2>Nearby</h2></div><div class="hscroll">' + nearby.map(function (x) { return placeCard(x.p, x.d); }).join("") + "</div></section>" : "") +
       '<p class="fine">' + (p.source === "osm" ? "Place data © OpenStreetMap contributors." : "Guide score, hours and fees are estimates — check with the venue before you go.") + (p.wiki ? " Photo via Wikipedia / Wikimedia Commons." : "") + "</p>" +
       "</div>";
     mount(html, { nav: "explore", cls: "view--place" });
+    if (T.places.online()) T.places.fetchReviews(p.id).then(function () {
+      var box = $("#reviews-box");
+      if (box && T.router.parse().param === p.id) box.innerHTML = reviewsBox(p, T.places.reviews(p.id));
+    }).catch(function () {});
     var m = T.maps.make($("#place-map"), p, 16);
     if (m) {
       L.marker([p.lat, p.lng], { icon: T.maps.pin(p) }).addTo(m);
@@ -811,7 +819,7 @@
   var rvDraft = { photos: [] };
   function reviewHtml(p, rv) {
     var u = T.auth.current();
-    var author = T.auth.profile(rv.uid) || { name: rv.name };
+    var author = T.auth.profile(rv.uid) || { name: rv.name, photo: rv.photo };
     var mine = u && rv.uid && rv.uid === u.id;
     return '<article class="review">' +
       "<header>" + avatar({ name: author.name || rv.name, photo: author.photo }, "sm") + "<div><strong>" + esc(author.name || rv.name) + "</strong><small>" + esc(T.date(new Date(rv.at))) +
@@ -825,8 +833,16 @@
       "</article>";
   }
   T.reviewHtml = reviewHtml;
+  function reviewsBox(p, reviews) {
+    return reviews.length ? '<div class="reviews">' + reviews.map(function (rv) { return reviewHtml(p, rv); }).join("") + "</div>"
+      : '<p class="muted">No reviews yet. Been here? Share your experience and photos to help other travelers.</p>';
+  }
   T.actions.review = function (el) {
     var p = T.places.get(el.dataset.id);
+    if (!el.dataset.rid && T.places.online() && !T.sync.active()) {
+      T.sheet.open("Log in to review", '<p class="muted">Reviews are shared with every Tara traveler, so you need an account to post one.</p><div class="result__actions"><a class="btn btn--primary" href="#/signup">Create account</a><a class="btn btn--ghost" href="#/login">Log in</a></div>');
+      return;
+    }
     var rv = el.dataset.rid ? T.places.review(p.id, el.dataset.rid) : null;
     var rating = rv ? rv.rating : 5;
     rvDraft = { photos: rv && rv.photos ? rv.photos.slice() : [] };
@@ -859,22 +875,25 @@
     var u = T.auth.current();
     var rating = Number((form.querySelector('[name="rating"]:checked') || {}).value || 5);
     var fields = { rating: rating, text: form.text.value.trim(), photos: rvDraft.photos.slice() };
-    try {
-      if (form.dataset.rid) T.places.updateReview(form.dataset.id, form.dataset.rid, fields);
-      else T.places.addReview(form.dataset.id, Object.assign(fields, { uid: u ? u.id : "", name: u ? u.name : "Traveler", type: u ? u.type : "", at: Date.now() }));
-    } catch (e) { formError(form, e.message); return; }
-    T.sheet.close();
-    T.toast(form.dataset.rid ? "Review updated" : "Thanks for your review!", form.dataset.rid ? "Your changes are saved." : "It now shows on this place's page.", "star");
-    T.router.resolve();
+    var btn = $('[type="submit"]', form);
+    busy(btn, true, "Saving…");
+    var job = form.dataset.rid ? T.places.updateReview(form.dataset.id, form.dataset.rid, fields)
+      : T.places.addReview(form.dataset.id, Object.assign(fields, { uid: u ? u.id : "", name: u ? u.name : "Traveler", authorPhoto: u ? u.photo : null, type: u ? u.type : "", at: Date.now() }));
+    job.then(function () {
+      T.sheet.close();
+      T.toast(form.dataset.rid ? "Review updated" : "Thanks for your review!", form.dataset.rid ? "Your changes are saved." : T.places.online() ? "Every Tara traveler can see it now." : "It now shows on this place's page.", "star");
+      T.router.resolve();
+    }).catch(function (e) { busy(btn, false); formError(form, e.message); });
   };
   T.actions["review-delete"] = function (el) {
     T.sheet.open("Delete your review?", '<p class="muted">Your rating, comment and photos for this place will be removed.</p><div class="result__actions"><button class="btn btn--danger" type="button" data-action="review-delete-yes" data-id="' + esc(el.dataset.id) + '" data-rid="' + esc(el.dataset.rid) + '">' + icon("trash") + 'Delete review</button><button class="btn btn--ghost" type="button" data-action="close-sheet">Cancel</button></div>');
   };
   T.actions["review-delete-yes"] = function (el) {
-    T.places.deleteReview(el.dataset.id, el.dataset.rid);
-    T.sheet.close();
-    T.toast("Review deleted", "", "trash");
-    T.router.resolve();
+    T.places.deleteReview(el.dataset.id, el.dataset.rid).then(function () {
+      T.sheet.close();
+      T.toast("Review deleted", "", "trash");
+      T.router.resolve();
+    }).catch(function (e) { T.toast("Couldn't delete", e.message, "info", "warn"); });
   };
   T.actions["review-photo"] = function (el) {
     var rv = T.places.review(el.dataset.id, el.dataset.rid);
@@ -894,7 +913,7 @@
     return {
       from: { name: here.label.split(",")[0], label: here.label, lat: here.lat, lng: here.lng },
       stops: [], date: T.isoDate(d), time: useNow && dep.getHours() < 15 ? T.pad(dep.getHours()) + ":" + T.pad(dep.getMinutes()) : "07:00",
-      pax: 1, type: T.traveler().id, ret: true, homeBy: "17:00", activities: true, optionId: null, include: null,
+      pax: 1, type: T.traveler().id, ret: true, homeBy: "19:00", dayEnd: "18:00", activities: true, optionId: null, include: null,
       days: 1, lodging: "budget",
     };
   }
@@ -909,7 +928,7 @@
     if (!dr.stops) dr.stops = dr.to ? [dr.to] : [];
     delete dr.to;
     if (dr.include && Array.isArray(dr.include)) dr.include = { 0: dr.include };
-    dr.days = dr.days || 1; dr.lodging = dr.lodging || "budget";
+    dr.days = dr.days || 1; dr.lodging = dr.lodging || "budget"; dr.dayEnd = dr.dayEnd || "18:00";
     dr.type = (C.travelerAliases || {})[dr.type] || dr.type || "regular";
     return dr;
   }
@@ -923,7 +942,7 @@
       var list = q.stops.split(",").map(function (id) { var pp = T.places.get(id), c2 = T.dest.city(id); return pp ? placeStop(pp) : c2 ? cityStop(c2) : null; }).filter(Boolean);
       if (list.length) { dr.stops = list; resetPlan(); }
     }
-    if (q.days) { dr.days = Math.max(1, Math.min(C.maxDays, Number(q.days) || 1)); if (dr.days > 1 && dr.homeBy === "17:00") dr.homeBy = "18:00"; T.state.plan = null; }
+    if (q.days) { dr.days = Math.max(1, Math.min(C.maxDays, Number(q.days) || 1)); T.state.plan = null; }
     // the link's settings are applied once; later changes on this screen win
     if (Object.keys(q).length) history.replaceState(null, "", "#/plan");
     var multi = dr.days > 1;
@@ -950,15 +969,17 @@
         '<div class="field"><span class="field__label">' + icon("bed") + "Overnight stay</span>" +
         '<div class="seg seg--3" role="radiogroup">' + C.lodging.map(function (l) {
           return '<label class="seg__opt"><input type="radio" name="lodging" value="' + l.id + '"' + (dr.lodging === l.id ? " checked" : "") + ' data-input="plan-field"><span><b>' + esc(l.label) + "</b><small>" + T.peso(l.room) + "/night</small></span></label>";
-        }).join("") + '</div><p class="fine">Each night you stay near where that day ends. Room price is for 2 people and goes into your budget. On the last day, “End each day at” is when you leave for home.</p></div></div>' : "") +
+        }).join("") + '</div><p class="fine">Each night you stay near where that day ends. Room price is for 2 people and goes into your budget.</p></div></div>' : "") +
       '<div class="grid2">' +
       '<label class="field"><span class="field__label">' + icon("calendar") + (multi ? "Start date" : "Date") + '</span><input class="input" type="date" name="date" value="' + dr.date + '" min="' + T.isoDate(new Date()) + '" data-input="plan-field"></label>' +
       '<label class="field"><span class="field__label">' + icon("home") + 'Leave home at</span><input class="input" type="time" name="time" value="' + dr.time + '" data-input="plan-field"></label>' +
       "</div>" +
       '<div class="grid2">' +
       '<div class="field"><span class="field__label">' + icon("users") + 'Travelers</span><div class="stepper"><button type="button" data-action="pax" data-d="-1" aria-label="Fewer">' + icon("minus") + '</button><output id="pax">' + dr.pax + '</output><button type="button" data-action="pax" data-d="1" aria-label="More">' + icon("plus") + "</button></div></div>" +
-      '<label class="field"><span class="field__label" id="leave-label">' + icon("clock") + leaveLabel(dr) + '</span><input class="input" type="time" name="homeBy" value="' + dr.homeBy + '" data-input="plan-field"></label>' +
+      (multi ? timeField("dayEnd", "clock", "End each day at", dr.dayEnd) : timeField("homeBy", dr.ret ? "home" : "clock", dr.ret ? "Arrive home by" : "End my day at", dr.homeBy)) +
       "</div>" +
+      (multi && dr.ret ? '<div class="grid2">' + timeField("homeBy", "home", "Arrive home by (last day)", dr.homeBy) + "</div>" : "") +
+      (dr.ret ? '<p class="fine home-note">' + icon("info") + "We count backwards from the time you want to arrive home and tell you when to leave.</p>" : "") +
       '<div class="field"><span class="field__label">' + icon("id") + 'Fare discount <em class="opt-tag">optional</em></span>' + travelerSeg(dr.type, "plan-type") + "</div>" +
       switchRow("ret", "Include the trip home", "Plan the ride back home at the end", dr.ret) +
       switchRow("activities", "Plan things to do", "Fill each day with places, a lunch stop and entrance fees", dr.activities) +
@@ -968,20 +989,21 @@
     mount(html, { nav: "plan" });
     if (T.state.plan) renderPlan(T.state.plan, false);
   };
-  function leaveLabel(dr) { return dr.days > 1 ? "End each day at" : dr.ret ? "Leave for home at" : "End my day at"; }
+  function timeField(name, ic, label, val) {
+    return '<label class="field"><span class="field__label">' + icon(ic) + label + '</span><input class="input" type="time" name="' + name + '" value="' + esc(val) + '" data-input="plan-field"></label>';
+  }
   function switchRow(name, title, sub, on) {
     return '<label class="switch"><span><strong>' + title + "</strong><small>" + sub + '</small></span><input type="checkbox" name="' + name + '"' + (on ? " checked" : "") + ' data-input="plan-field"><span class="switch__ui"></span></label>';
   }
   T.inputs["plan-field"] = function (el) {
     var dr = draft();
     if (el.type === "checkbox") dr[el.name] = el.checked; else dr[el.name] = el.value;
-    if (el.name === "ret") { var lb = $("#leave-label"); if (lb) lb.innerHTML = icon("clock") + leaveLabel(dr); }
+    if (el.name === "ret") { T.state.plan = null; T.router.resolve(); }
     if (el.name === "time" || el.name === "date") dr.optionId = null;
   };
   T.inputs["trip-len"] = function (el) {
     var dr = draft();
     dr.days = el.value === "1" ? 1 : Math.max(2, dr.days > 1 ? dr.days : 2);
-    if (dr.days > 1 && dr.homeBy === "17:00") dr.homeBy = "18:00";
     dr.include = null; T.state.plan = null;
     T.router.resolve();
   };
@@ -1026,7 +1048,7 @@
   function buildFromDraft(weather, includeOverride) {
     var dr = draft();
     var trav = C.travelerTypes.filter(function (t) { return t.id === dr.type; })[0] || T.traveler();
-    return T.planner.build({ from: dr.from, stops: dr.stops, depart: draftDepart(dr), traveler: trav, pax: dr.pax, ret: dr.ret, homeBy: dr.homeBy,
+    return T.planner.build({ from: dr.from, stops: dr.stops, depart: draftDepart(dr), traveler: trav, pax: dr.pax, ret: dr.ret, homeBy: dr.homeBy, dayEnd: dr.days > 1 ? dr.dayEnd || "18:00" : null,
       days: dr.days, lodging: dr.lodging, activities: dr.activities, optionId: dr.optionId, include: includeOverride !== undefined ? includeOverride : dr.include, weather: weather });
   }
   T.submits.plan = function () {
@@ -1289,7 +1311,7 @@
       html += '<div class="card day-card"><div class="sec-head"><h3>' + icon(multi ? "calendar" : "sparkle") + " " + esc(title) + "</h3>" +
         (opts.edit && plan.activitiesOn ? '<button class="btn btn--sm btn--ghost" type="button" data-action="edit-stops" data-day="' + d.index + '">' + icon("edit") + "Edit places</button>" : "") + "</div>" +
         (multi ? '<p class="day-card__stops">' + icon("pin") + esc(d.stops.map(function (s) { return s.name; }).join(" → ")) + "</p>" : "") +
-        (opts.edit && plan.leaveAdjusted && d.index === plan.days.length - 1 ? '<p class="fine">Your end time was too close to arrival, so we planned until ' + T.time(new Date(d.end)) + ".</p>" : "") +
+        (opts.edit && d.index === plan.days.length - 1 ? homeNote(plan) : "") +
         (opts.edit ? fitBlock(d.fit, d.end, endVerb(plan, d.index), d.index) : "") +
         (d.steps.length ? dayTimeline(d, { check: opts.check, done: plan.done }) : '<p class="muted">No featured spots here yet. Explore nearby places after you arrive.</p>') +
         (d.skipped.length ? '<p class="fine">' + d.skipped.map(function (s) { return esc(s.place.name) + ": " + esc(s.why); }).join(" · ") + "</p>" : "") + "</div>";
@@ -1297,6 +1319,15 @@
     if (plan.back) html += '<div class="card"><div class="sec-head"><h3>' + icon("home") + " Going home</h3><span class=\"muted\">" + T.dur(plan.back.minutes) + " · " + T.peso(plan.back.fare) + "/person</span></div>" +
       legsTimeline(plan.back, { startLabel: "Leave for " + homeName(plan), startIcon: "flag", endLabel: plan.fromHome ? "Arrive home" : "Arrive at " + plan.from.name, endIcon: "home", check: opts.check, done: plan.done, prefix: "b" }) + "</div>";
     return html;
+  }
+  /* "Be home by" result: when to leave the last stop, and a warning if it can't be done */
+  function homeNote(plan) {
+    if (!plan.back || !plan.homeTarget) return plan.leaveAdjusted ? '<p class="fine">Your end time was too close to arrival, so we planned until ' + T.time(new Date(plan.leaveAt)) + ".</p>" : "";
+    var ok = plan.homeLate <= 10;
+    return '<div class="home-by' + (ok ? "" : " home-by--late") + '">' + icon(ok ? "home" : "info") + "<p>" +
+      (ok ? "To arrive home by <b>" + T.time(new Date(plan.homeTarget)) + "</b>, leave " + esc(plan.stops[plan.stops.length - 1].name) + " at <b>" + T.time(new Date(plan.back.depart)) + "</b> — you arrive home around " + T.time(new Date(plan.back.arrive)) + "."
+        : "You can't arrive home by " + T.time(new Date(plan.homeTarget)) + " with this plan — the ride back takes " + T.dur(plan.back.minutes) + ". You'd arrive home around <b>" + T.time(new Date(plan.back.arrive)) + "</b>. Leave home earlier or pick a later time.") +
+      "</p></div>";
   }
   function renderPlan(plan, scroll) {
     var out = $("#plan-out");

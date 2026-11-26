@@ -1,11 +1,11 @@
 /* Tara service worker — offline app shell, cached photos/tiles, notification clicks.
    Bump VERSION when you publish changes. */
-const VERSION = "tara-v3";
+const VERSION = "tara-v4";
 const RUNTIME = "tara-runtime-v1";
 const CORE = [
   "./", "./index.html", "./offline.html", "./manifest.webmanifest",
   "./css/tokens.css", "./css/app.css",
-  "./js/config.js", "./js/core.js", "./js/services.js", "./js/planner.js", "./js/views.js", "./js/main.js",
+  "./js/config.js", "./js/core.js", "./js/services.js", "./js/cloud.js", "./js/planner.js", "./js/views.js", "./js/main.js",
   "./vendor/leaflet/leaflet.js", "./vendor/leaflet/leaflet.css",
   "./icons/favicon.svg", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
 ];

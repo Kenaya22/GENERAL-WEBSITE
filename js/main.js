@@ -213,6 +213,9 @@
   if (!location.hash) history.replaceState(null, "", "#/" + (T.auth.current() ? "home" : "welcome"));
   R.resolve();
   updateBadge();
+  // get trips and profile changes made on other phones
+  T.sync.boot().then(function (changed) { if (changed) { updateBadge(); R.resolve(); } });
+  window.addEventListener("online", function () { T.sync.boot(); });
   T.scheduleReminders();
   document.addEventListener("visibilitychange", function () { if (!document.hidden) T.scheduleReminders(); });
 

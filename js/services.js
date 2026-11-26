@@ -60,8 +60,20 @@
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return Promise.reject(new Error("Please enter a valid email."));
       if (String(f.password).length < 6) return Promise.reject(new Error("Password needs at least 6 characters."));
       var users = this.users();
-      if (users.some(function (u) { return u.email === email; })) return Promise.reject(new Error("An account with this email already exists. Log in instead."));
+      var cloud = T.cloud && T.cloud.enabled();
+      if (!cloud && users.some(function (u) { return u.email === email; })) return Promise.reject(new Error("An account with this email already exists. Log in instead."));
       var salt = T.uid();
+      if (cloud) {
+        // online account: works on any phone, trips and reviews are saved on the server
+        return T.cloud.signup(email, f.password, String(f.name).trim()).then(function (sess) {
+          return hash(f.password, salt).then(function (h) {
+            var u = saveUser({ id: sess.user.id, cloud: true, name: String(f.name).trim(), email: email, salt: salt, hash: h, type: f.type || "regular", createdAt: Date.now() });
+            store.set("tara.session", { id: u.id });
+            T.sync.push();
+            return u;
+          });
+        });
+      }
       return hash(f.password, salt).then(function (h) {
         var u = { id: "u_" + T.uid(), name: String(f.name).trim(), email: email, salt: salt, hash: h, type: f.type || "regular", createdAt: Date.now() };
         users.push(u);
@@ -72,6 +84,10 @@
     },
     login: function (email, password) {
       email = String(email || "").trim().toLowerCase();
+      if (T.cloud && T.cloud.enabled()) return cloudLogin(this, email, password);
+      return this.localLogin(email, password);
+    },
+    localLogin: function (email, password) {
       var u = this.users().filter(function (x) { return x.email === email; })[0];
       if (!u) return Promise.reject(new Error("No account found with that email."));
       return hash(password, u.salt).then(function (h) {
@@ -96,17 +112,104 @@
       }
       var users = this.users(), out = null;
       users.forEach(function (u) { if (u.id === s.id) { Object.assign(u, fields); out = u; } });
-      store.set("tara.users", users);
+      if (!store.set("tara.users", users)) return null;
+      if (out && out.cloud) {
+        T.sync.push();
+        if ("name" in fields || "photo" in fields) T.cloud.updateAuthor(out.name, out.photo);
+      }
       return out;
     },
-    logout: function () { store.del("tara.session"); },
+    logout: function () {
+      var u = this.current();
+      if (u && u.cloud && T.cloud) T.cloud.logout();
+      store.del("tara.session");
+    },
   };
 
-  /* Per-user data bucket */
+  function saveUser(u) {
+    var users = T.auth.users().filter(function (x) { return x.id !== u.id && x.email !== u.email; });
+    users.push(u);
+    store.set("tara.users", users);
+    return u;
+  }
+  /* Online login. Falls back to this device when offline, and moves an older
+     device-only account online the first time you log in with it. */
+  function cloudLogin(auth, email, password) {
+    var local = auth.users().filter(function (x) { return x.email === email; })[0];
+    return T.cloud.login(email, password).then(function (sess) {
+      return hash(password, (local && local.salt) || T.uid()).then(function (h) {
+        var u = saveUser(Object.assign({}, local && local.cloud ? local : {}, { id: sess.user.id, cloud: true, email: email, salt: (local && local.salt) || null, hash: h,
+          name: (local && local.name) || email.split("@")[0], type: (local && local.type) || "regular", createdAt: (local && local.createdAt) || Date.now() }));
+        if (!u.salt) { u.salt = T.uid(); return hash(password, u.salt).then(function (h2) { u.hash = h2; saveUser(u); return u; }); }
+        return u;
+      });
+    }).then(function (u) {
+      store.set("tara.session", { id: u.id });
+      return T.sync.pull().then(function () { return T.auth.current(); }, function () { return T.auth.current(); });
+    }).catch(function (err) {
+      if (!local) throw err;
+      // offline: let a known account in with the password saved on this device
+      if (err.offline) return auth.localLogin(email, password);
+      // wrong password online, but it's an older device-only account → upload it
+      if (!local.cloud && err.status === 400) {
+        return auth.localLogin(email, password).then(function (old) {
+          return T.cloud.signup(email, password, old.name).then(function (sess) {
+            ["trips", "favs"].forEach(function (k) { var v = store.get("tara.u." + old.id + "." + k, null); if (v) store.set("tara.u." + sess.user.id + "." + k, v); });
+            var u = saveUser(Object.assign({}, old, { id: sess.user.id, cloud: true }));
+            store.set("tara.session", { id: u.id });
+            T.sync.push();
+            return u;
+          });
+        }, function () { throw err; });
+      }
+      throw err;
+    });
+  }
+
+  /* Per-user data bucket (synced online for online accounts) */
   T.data = {
     key: function (k) { var u = T.auth.current(); return "tara.u." + (u ? u.id : "anon") + "." + k; },
     get: function (k, d) { return store.get(this.key(k), d); },
-    set: function (k, v) { return store.set(this.key(k), v); },
+    set: function (k, v) {
+      var ok = store.set(this.key(k), v);
+      if (k === "trips" || k === "favs") T.sync.push();
+      return ok;
+    },
+  };
+
+  /* Sync: your profile, trips and saved places ⇄ your online account */
+  T.sync = {
+    active: function () { var u = T.auth.current(); return !!(u && u.cloud && T.cloud && T.cloud.enabled() && T.cloud.session()); },
+    data: function () {
+      var u = T.auth.current() || {};
+      return { profile: { name: u.name, type: u.type, photo: u.photo || null, home: u.home || null, location: u.location || null },
+        trips: T.data.get("trips", []), favs: T.data.get("favs", []) };
+    },
+    push: function () { if (this.active()) T.cloud.schedulePush(this.data.bind(this)); },
+    // download the online copy and use it on this device
+    pull: function () {
+      if (!this.active()) return Promise.resolve(false);
+      var self = this;
+      return T.cloud.pull().then(function (row) {
+        if (!row) { self.push(); return false; }
+        var d = row.data || {}, u = T.auth.current();
+        if (d.profile) {
+          var users = T.auth.users();
+          users.forEach(function (x) { if (x.id === u.id) Object.keys(d.profile).forEach(function (k) { if (d.profile[k] != null) x[k] = d.profile[k]; }); });
+          store.set("tara.users", users);
+        }
+        if (d.trips) store.set("tara.u." + u.id + ".trips", d.trips);
+        if (d.favs) store.set("tara.u." + u.id + ".favs", d.favs);
+        store.set("tara.cloud.pulledAt", Date.parse(row.updated_at) || Date.now());
+        return true;
+      });
+    },
+    // on app start: upload changes made offline, otherwise get changes made on other phones
+    boot: function () {
+      if (!this.active() || !navigator.onLine) return Promise.resolve(false);
+      if (store.get("tara.cloud.dirty", false)) { store.del("tara.cloud.dirty"); this.push(); return Promise.resolve(false); }
+      return this.pull().catch(function () { return false; });
+    },
   };
 
   T.traveler = function () {
@@ -226,6 +329,7 @@
   /* ======================================================================
      DESTINATIONS — province → city hierarchy (Klook-style browsing)
      ====================================================================== */
+  if (C.morePlaces) { C.places = C.places.concat(C.morePlaces); delete C.morePlaces; }
   var cityList = [], cityById = {}, provById = {};
   C.destinations.forEach(function (prov) {
     provById[prov.id] = prov;
@@ -381,24 +485,42 @@
     /* Reviews are saved in this browser (there is no server yet), so everyone
        using Tara on this device sees them. Each has an id and the author's user id
        so the author can edit or delete it later. */
-    reviews: function (id) { return (store.get("tara.reviews", {})[id] || []).slice().sort(function (a, b) { return b.at - a.at; }); },
+    /* With the online backend on, reviews are shared with everyone (cached here);
+       older reviews saved only on this device are still shown. */
+    online: function () { return !!(T.cloud && T.cloud.enabled()); },
+    localReviews: function (id) { return store.get("tara.reviews", {})[id] || []; },
+    reviews: function (id) {
+      var list = this.localReviews(id).slice();
+      if (this.online()) list = (T.cloud.cachedReviews(id) || []).concat(list);
+      return list.sort(function (a, b) { return b.at - a.at; });
+    },
     review: function (id, rid) { return this.reviews(id).filter(function (r) { return r.id === rid; })[0] || null; },
+    fetchReviews: function (id) { return this.online() ? T.cloud.fetchReviews(id) : Promise.resolve(this.reviews(id)); },
+    isLocalReview: function (rid) { return /^r_/.test(String(rid)); },
     addReview: function (id, r) {
+      if (this.online()) {
+        if (!T.sync.active()) return Promise.reject(new Error("Please log in with an account to post reviews that everyone can see."));
+        return T.cloud.addReview(id, r);
+      }
       var all = store.get("tara.reviews", {});
       r.id = r.id || "r_" + T.uid();
       (all[id] = all[id] || []).push(r);
-      if (!store.set("tara.reviews", all)) throw new Error("Not enough space on this device — try fewer or smaller photos.");
-      return r;
+      if (!store.set("tara.reviews", all)) return Promise.reject(new Error("Not enough space on this device — try fewer or smaller photos."));
+      return Promise.resolve(r);
     },
     updateReview: function (id, rid, fields) {
+      if (this.online() && !this.isLocalReview(rid)) return T.cloud.updateReview(id, rid, fields);
       var all = store.get("tara.reviews", {});
       (all[id] || []).forEach(function (r) { if (r.id === rid) Object.assign(r, fields, { edited: Date.now() }); });
-      if (!store.set("tara.reviews", all)) throw new Error("Not enough space on this device — try fewer or smaller photos.");
+      if (!store.set("tara.reviews", all)) return Promise.reject(new Error("Not enough space on this device — try fewer or smaller photos."));
+      return Promise.resolve();
     },
     deleteReview: function (id, rid) {
+      if (this.online() && !this.isLocalReview(rid)) return T.cloud.deleteReview(id, rid);
       var all = store.get("tara.reviews", {});
       all[id] = (all[id] || []).filter(function (r) { return r.id !== rid; });
       store.set("tara.reviews", all);
+      return Promise.resolve();
     },
     score: function (p) {
       var rv = this.reviews(p.id);

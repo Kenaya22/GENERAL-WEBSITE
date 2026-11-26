@@ -16,6 +16,16 @@ TARA.config = {
     motto: "Tara, lakad tayo.",
   },
 
+  /* Online accounts, synced trips and shared reviews (optional, free).
+     Create a Supabase project, run supabase/schema.sql, then paste the
+     Project URL and the public "anon" key below. Leave empty to keep
+     everything on the device only. The anon key is safe to publish —
+     the security rules in schema.sql protect each user's data. */
+  backend: {
+    supabaseUrl: "",
+    supabaseKey: "",
+  },
+
   /* Default spot used before the traveler shares a location. */
   defaultLocation: { label: "Calamba, Laguna", lat: 14.2117, lng: 121.1653, approx: true },
 
@@ -54,6 +64,7 @@ TARA.config = {
       { id: "nagcarlan", name: "Nagcarlan", lat: 14.1364, lng: 121.4165, radius: 4, wiki: "Nagcarlan Underground Cemetery", blurb: "Home of the only underground cemetery in the country." },
       { id: "liliw", name: "Liliw", lat: 14.1307, lng: 121.4365, radius: 3, wiki: "Liliw", blurb: "The tsinelas (slipper) capital of Laguna." },
       { id: "paete", name: "Paete", lat: 14.3650, lng: 121.4830, radius: 3, wiki: "Paete", blurb: "Woodcarving capital of the Philippines." },
+      { id: "cavinti", name: "Cavinti", lat: 14.2450, lng: 121.5070, radius: 6, wiki: "Lake Caliraya", blurb: "Lakes, eco parks and the back trail to Pagsanjan Falls." },
     ] },
     { id: "metro-manila", name: "Metro Manila", blurb: "History, museums, food crawls and big malls", cities: [
       { id: "manila", name: "Manila", lat: 14.5960, lng: 120.9800, radius: 5, wiki: "Manila", blurb: "The capital — Intramuros, Binondo, Rizal Park and the national museums." },
@@ -62,23 +73,30 @@ TARA.config = {
       { id: "taguig", name: "Taguig (BGC)", lat: 14.5509, lng: 121.0503, radius: 4, wiki: "Bonifacio Global City", blurb: "Walkable BGC — High Street, art and science museums." },
       { id: "quezon-city", name: "Quezon City", lat: 14.6516, lng: 121.0493, radius: 9, wiki: "Quezon City", blurb: "The biggest city of Metro Manila — parks, food parks and universities." },
       { id: "muntinlupa", name: "Muntinlupa (Alabang)", lat: 14.4180, lng: 121.0400, radius: 5, wiki: "Alabang", blurb: "Southern gateway with malls and bus terminals." },
+      { id: "marikina", name: "Marikina", lat: 14.6330, lng: 121.0990, radius: 4, wiki: "Marikina", blurb: "Shoe capital with a riverside park and clean, walkable streets." },
     ] },
     { id: "cavite", name: "Cavite", blurb: "Cool Tagaytay air and revolutionary history", cities: [
       { id: "tagaytay", name: "Tagaytay", lat: 14.1100, lng: 120.9700, radius: 8, wiki: "Tagaytay", blurb: "Cool weather, Taal Volcano views and bulalo." },
       { id: "kawit", name: "Kawit", lat: 14.4363, lng: 120.9014, radius: 3, wiki: "Aguinaldo Shrine", blurb: "Where Philippine independence was declared in 1898." },
+      { id: "imus", name: "Imus", lat: 14.4297, lng: 120.9367, radius: 4, wiki: "Imus Cathedral", blurb: "Historic cathedral town, the first capital of Cavite's revolution." },
     ] },
     { id: "batangas", name: "Batangas", blurb: "Heritage towns, kapeng barako and beaches", cities: [
       { id: "taal", name: "Taal", lat: 13.8803, lng: 120.9230, radius: 4, wiki: "Taal, Batangas", blurb: "Spanish-era heritage town with Asia's largest Catholic basilica." },
       { id: "lipa", name: "Lipa", lat: 13.9411, lng: 121.1631, radius: 7, wiki: "Lipa, Batangas", blurb: "Coffee country and gateway to southern Batangas." },
+      { id: "batangas-city", name: "Batangas City", lat: 13.7565, lng: 121.0583, radius: 7, wiki: "Batangas City", blurb: "Port city with a grand basilica and ferries to the islands." },
     ] },
     { id: "rizal", name: "Rizal", blurb: "Pilgrim churches, waterfalls and art in the hills", cities: [
       { id: "antipolo", name: "Antipolo", lat: 14.5864, lng: 121.1760, radius: 7, wiki: "Antipolo", blurb: "Pilgrimage city with views over Metro Manila." },
+      { id: "tanay", name: "Tanay", lat: 14.4980, lng: 121.2850, radius: 12, wiki: "Daranak Falls", blurb: "Mountain town of waterfalls, sea-of-clouds viewpoints and hilltop retreats." },
+      { id: "angono", name: "Angono", lat: 14.5264, lng: 121.1535, radius: 4, wiki: "Angono", blurb: "Art capital of the Philippines, home of painters and the Higantes." },
     ] },
     { id: "quezon", name: "Quezon", blurb: "Colorful festivals and longganisa", cities: [
       { id: "lucban", name: "Lucban", lat: 14.1136, lng: 121.5563, radius: 4, wiki: "Lucban", blurb: "Pahiyas Festival town — pancit habhab and longganisa." },
+      { id: "tayabas", name: "Tayabas", lat: 14.0257, lng: 121.5928, radius: 5, wiki: "Tayabas Basilica", blurb: "Old Spanish bridges and the 'key-shaped' basilica." },
+      { id: "lucena", name: "Lucena", lat: 13.9373, lng: 121.6170, radius: 6, wiki: "Lucena", blurb: "Quezon's capital — parks, cathedral and gateway to Marinduque." },
     ] },
   ],
-  popularCities: ["manila", "tagaytay", "santa-rosa", "calamba", "antipolo", "taal", "pagsanjan", "los-banos", "lucban", "taguig"],
+  popularCities: ["manila", "tagaytay", "calamba", "tanay", "santa-rosa", "antipolo", "taal", "pagsanjan", "lucban", "batangas-city", "los-banos", "taguig"],
 
   categories: [
     { id: "food", label: "Restaurants", short: "Food", icon: "utensils" },
@@ -356,9 +374,79 @@ TARA.config = {
       rating: 4.4, hours: ["07:00", "19:00"], fee: 0, visit: 30, price: 1, wiki: "Longganisa",
       desc: "Garlicky Lucban longganisa, broas and kiping souvenirs.", tips: ["Keep longganisa cool on the trip home"] },
   ],
+  /* more places (added in v4) — merged into places below */
+  morePlaces: [
+    // ---- Rizal: Tanay & Angono -------------------------------------------------
+    { id: "daranak-falls", name: "Daranak Falls", cat: "park", area: "Tanay, Rizal", address: "Brgy. Tandang Kutyo, Tanay", lat: 14.5046, lng: 121.3175,
+      rating: 4.3, hours: ["07:00", "17:00"], fee: { regular: 50, discounted: 40 }, visit: 120, wiki: "Daranak Falls",
+      desc: "A wide, easy-to-reach waterfall with cool pools for swimming, a short tricycle ride from Tanay town.", tips: ["Bring swimwear and a change of clothes", "Weekday mornings are quiet"] },
+    { id: "masungi", name: "Masungi Georeserve", cat: "park", area: "Tanay–Baras, Rizal", address: "Marcos Highway (Km 47), Baras", lat: 14.5885, lng: 121.3155,
+      rating: 4.8, hours: ["06:00", "16:00"], fee: { regular: 1800, discounted: 1800, note: "guided trail, booking required" }, visit: 240, wiki: "Masungi Georeserve",
+      desc: "Rope courses, hanging bridges and giant nets over limestone karst — a guided conservation trail with sweeping views.", tips: ["Book online weeks ahead", "Wear closed shoes and gloves"] },
+    { id: "regina-rica", name: "Regina Rica", cat: "church", area: "Tanay, Rizal", address: "Sitio Ugong, Brgy. Sampaloc, Tanay", lat: 14.5207, lng: 121.3487,
+      rating: 4.6, hours: ["07:00", "17:00"], fee: { regular: 50, discounted: 50, note: "environmental fee" }, visit: 90, wiki: "Regina Rica",
+      desc: "A hilltop pilgrimage site with a giant statue of Mary overlooking the Sierra Madre, plus a garden and chapels.", tips: ["Cool air — bring a light jacket", "Pair with Daranak Falls"] },
+    { id: "tanay-sea-of-clouds", name: "Tanay Sea of Clouds Viewpoints", cat: "park", area: "Tanay, Rizal", address: "Marcos Highway, Tanay", lat: 14.5600, lng: 121.3600,
+      rating: 4.5, hours: ["04:00", "18:00"], fee: { regular: 50, discounted: 50, note: "per viewdeck, varies" }, visit: 60,
+      desc: "Roadside view decks along Marcos Highway where a sea of clouds rolls over the mountains on cool mornings.", tips: ["Arrive before 6 AM for the clouds", "Best from November to February"] },
+    { id: "angono-petroglyphs", name: "Angono Petroglyphs", cat: "heritage", city: "angono", area: "Binangonan, Rizal", address: "Brgy. Binitagan, Binangonan", lat: 14.5410, lng: 121.1784,
+      rating: 4.3, hours: ["08:00", "16:00"], closed: [1], fee: { regular: 20, discounted: 10 }, visit: 60, wiki: "Angono Petroglyphs",
+      desc: "The oldest known artwork in the Philippines — 127 figures carved into a rock wall about 3,000 years ago, run by the National Museum.", tips: ["Closed on Mondays", "Short walk through a tunnel from the gate"] },
+    { id: "blanco-museum", name: "Blanco Family Museum", cat: "museum", area: "Angono, Rizal", address: "312 Ibañez St., Angono", lat: 14.5274, lng: 121.1530,
+      rating: 4.6, hours: ["09:00", "17:00"], fee: { regular: 150, discounted: 120 }, visit: 60, wiki: "Blanco Family Museum",
+      desc: "Paintings by a whole family of Angono artists, known for their detailed, colorful scenes of Filipino life.", tips: ["Ask about guided tours"] },
+    // ---- Batangas -------------------------------------------------------------
+    { id: "lipa-cathedral", name: "San Sebastian Cathedral (Lipa)", cat: "church", area: "Lipa, Batangas", address: "C.M. Recto Ave., Lipa", lat: 13.9414, lng: 121.1632,
+      rating: 4.6, hours: ["05:00", "20:00"], fee: 0, visit: 30, wiki: "San Sebastian Cathedral (Lipa)",
+      desc: "Lipa's grand cathedral at the heart of the city, beside the Archbishop's palace.", tips: ["Try kapeng barako nearby"] },
+    { id: "lipa-barako", name: "Kapeng Barako at Lipa Public Market", cat: "cafe", area: "Lipa, Batangas", address: "Lipa Public Market", lat: 13.9420, lng: 121.1610,
+      rating: 4.3, hours: ["05:00", "18:00"], fee: 0, visit: 30, price: 1, wiki: "Kapeng barako",
+      desc: "Strong local barako coffee, sold by the cup and by the bag — Lipa is the heart of Batangas coffee.", tips: ["Buy ground barako as pasalubong"] },
+    { id: "batangas-basilica", name: "Basilica of the Immaculate Conception", cat: "church", area: "Batangas City", address: "P. Burgos St., Batangas City", lat: 13.7569, lng: 121.0587,
+      rating: 4.6, hours: ["05:00", "20:00"], fee: 0, visit: 30, wiki: "Basilica of the Immaculate Conception (Batangas City)",
+      desc: "A historic minor basilica in Batangas City's old center, a short ride from the port.", tips: ["Quick stop before or after a ferry"] },
+    { id: "batangas-lomi", name: "Batangas Lomi Houses", cat: "food", area: "Batangas City", address: "Downtown Batangas City", lat: 13.7580, lng: 121.0600,
+      rating: 4.4, hours: ["07:00", "20:00"], fee: 0, visit: 40, price: 1, wiki: "Lomi",
+      desc: "Thick egg-noodle lomi loaded with liver, kikiam and chicharon — Batangas' signature comfort food.", tips: ["One bowl is enough for two light eaters"] },
+    // ---- Quezon ----------------------------------------------------------------
+    { id: "tayabas-basilica", name: "Tayabas Basilica", cat: "church", area: "Tayabas, Quezon", address: "Tayabas town proper", lat: 14.0263, lng: 121.5922,
+      rating: 4.7, hours: ["06:00", "19:00"], fee: 0, visit: 30, wiki: "Tayabas Basilica",
+      desc: "The 'Susi ng Tayabas' — a basilica whose floor plan is shaped like a key, with a grand altar.", tips: ["Try budin and pasalubong around the plaza"] },
+    { id: "malagonlong", name: "Malagonlong Bridge", cat: "heritage", area: "Tayabas, Quezon", address: "Brgy. Lalo, Tayabas", lat: 14.0475, lng: 121.6052, wiki: "Malagonlong Bridge",
+      rating: 4.5, hours: ["00:00", "23:59"], fee: 0, visit: 30,
+      desc: "The longest surviving Spanish-era stone bridge in the country, arching over the Dumacaa River.", tips: ["Best photos from the riverbank"] },
+    { id: "lucena-cathedral", name: "Lucena Cathedral", cat: "church", area: "Lucena, Quezon", address: "Quezon Ave., Lucena", lat: 13.9369, lng: 121.6168,
+      rating: 4.5, hours: ["05:00", "20:00"], fee: 0, visit: 25, wiki: "Lucena Cathedral",
+      desc: "The Cathedral of St. Ferdinand facing Perez Park in the city center.", tips: ["Walk across to Perez Park"] },
+    { id: "perez-park", name: "Perez Park", cat: "park", area: "Lucena, Quezon", address: "Quezon Ave., Lucena", lat: 13.9375, lng: 121.6180,
+      rating: 4.3, hours: ["05:00", "22:00"], fee: 0, visit: 40,
+      desc: "Lucena's central park beside the provincial capitol, lively in the evening with food stalls.", tips: ["Nice in the late afternoon"] },
+    // ---- Cavite, Laguna, Metro Manila -----------------------------------------
+    { id: "imus-cathedral", name: "Imus Cathedral", cat: "church", area: "Imus, Cavite", address: "Imus town plaza", lat: 14.4290, lng: 120.9369, wiki: "Imus Cathedral",
+      rating: 4.6, hours: ["05:00", "20:00"], fee: 0, visit: 25,
+      desc: "The seat of the Diocese of Imus, a centuries-old stone church on the town plaza.", tips: ["Pair with the Aguinaldo Shrine in Kawit"] },
+    { id: "bag-of-beans", name: "Bag of Beans Tagaytay", cat: "cafe", area: "Tagaytay, Cavite", address: "Aguinaldo Hwy, Tagaytay", lat: 14.1009, lng: 120.9327,
+      rating: 4.5, hours: ["07:00", "22:00"], fee: 0, visit: 75, price: 2, wiki: "Tagaytay",
+      desc: "A garden café famous for brewed coffee, homemade pies and hearty breakfasts in the cool Tagaytay air.", tips: ["Try the pie and brewed coffee", "Long waits on weekend mornings"] },
+    { id: "lake-caliraya", name: "Lake Caliraya", cat: "park", area: "Cavinti, Laguna", address: "Caliraya, Cavinti", lat: 14.2900, lng: 121.5300,
+      rating: 4.3, hours: ["07:00", "18:00"], fee: { regular: 100, discounted: 80, note: "resort entrance varies" }, visit: 150, wiki: "Lake Caliraya",
+      desc: "A man-made lake in the hills with kayaking, fishing and lakeside resorts.", tips: ["Weekdays are calmer", "Bring sun protection"] },
+    { id: "uplb-carabao", name: "UPLB Campus & Carabao Park", cat: "park", area: "Los Baños, Laguna", address: "UP Los Baños", lat: 14.1650, lng: 121.2420,
+      rating: 4.4, hours: ["06:00", "18:00"], fee: 0, visit: 60, wiki: "University of the Philippines Los Baños",
+      desc: "A leafy campus walk with the famous Carabao Park, the Freedom Park and Dairy Bar's milk and ice cream.", tips: ["Try fresh milk at the Dairy Training Center"] },
+    { id: "marikina-shoe-museum", name: "Marikina Shoe Museum", cat: "museum", area: "Marikina", address: "J.P. Rizal St., Marikina", lat: 14.6286, lng: 121.0977,
+      rating: 4.2, hours: ["08:00", "17:00"], fee: { regular: 50, discounted: 40 }, visit: 45, wiki: "Marikina Shoe Museum",
+      desc: "Home to hundreds of shoes, including a famous collection owned by Imelda Marcos.", tips: ["Shop for local shoes nearby"] },
+    { id: "marikina-riverbanks", name: "Marikina Riverbanks", cat: "park", area: "Marikina", address: "Marikina River Park", lat: 14.6330, lng: 121.0900,
+      rating: 4.2, hours: ["05:00", "22:00"], fee: 0, visit: 60, wiki: "Marikina River",
+      desc: "A long riverside park for walks, bike rides and food stalls in the evening.", tips: ["Rent a bike along the river"] },
+    { id: "art-in-island", name: "Art in Island", cat: "museum", area: "Quezon City", address: "15th Ave., Cubao, Quezon City", lat: 14.6237, lng: 121.0566,
+      rating: 4.4, hours: ["10:00", "20:00"], fee: { regular: 500, discounted: 450 }, visit: 90, wiki: "Art in Island",
+      desc: "A 3D trick-art museum where you become part of the paintings — great for fun photos.", tips: ["Bring your phone fully charged", "Barefoot inside — wear socks"] },
+  ],
 
   /* "Day trips" featured on the home screen */
-  dayTrips: ["intramuros", "enchanted-kingdom", "peoples-park", "pagsanjan-falls", "taal-basilica", "pinto-art"],
+  dayTrips: ["intramuros", "enchanted-kingdom", "peoples-park", "masungi", "pagsanjan-falls", "taal-basilica", "pinto-art"],
 
   /* ----- Transit network (simplified) ----- */
   transit: {
@@ -387,6 +475,10 @@ TARA.config = {
         how: "Buses leave every few minutes from the Grand Terminal." },
       { id: "lipa", name: "Lipa (SM City Lipa) bus stop", lat: 13.9525, lng: 121.1628, area: "Lipa", sign: "LIPA / BATANGAS", terminals: ["buendia", "cubao"],
         how: "Flag Manila-bound buses along the highway near SM City Lipa." },
+      { id: "lucena", name: "Lucena Grand Terminal", lat: 13.9440, lng: 121.6040, area: "Lucena", sign: "LUCENA", terminals: ["buendia", "pitx", "cubao"],
+        how: "Buses to Manila leave from the Lucena Grand Terminal on Diversion Road." },
+      { id: "tanay", name: "Tanay town proper (vans & jeepneys)", lat: 14.4980, lng: 121.2840, area: "Tanay", sign: "TANAY", terminals: ["cubao"],
+        how: "Vans and jeepneys to Cubao leave from the Tanay town proper." },
       { id: "lemery", name: "Lemery bus terminal (for Taal)", lat: 13.8826, lng: 120.9145, area: "Lemery", sign: "LEMERY", terminals: ["buendia", "pitx"],
         how: "Taal is a short tricycle ride from the Lemery terminal." },
     ],
@@ -408,7 +500,7 @@ TARA.config = {
         stops: [{ name: "Calamba Crossing", lat: 14.2073, lng: 121.1565 }, { name: "Balibago Complex terminal (Santa Rosa)", lat: 14.2914, lng: 121.1063 }, { name: "Tagaytay Rotonda", lat: 14.1065, lng: 120.9603 }],
         rides: [{ mode: "jeep", sign: "BALIBAGO / STA. ROSA", goes: "Santa Rosa (Balibago)", back: "CALAMBA", goesBack: "Calamba" },
           { mode: "jeep", sign: "TAGAYTAY", goes: "Tagaytay", back: "BALIBAGO / STA. ROSA", goesBack: "Santa Rosa (Balibago)" }] },
-      { from: ["calamba", "cabuyao", "los-banos", "santa-rosa", "binan"], to: ["pagsanjan", "paete"],
+      { from: ["calamba", "cabuyao", "los-banos", "santa-rosa", "binan"], to: ["pagsanjan", "paete", "cavinti"],
         stops: [{ name: "Calamba Crossing", lat: 14.2073, lng: 121.1565 }, { name: "Santa Cruz terminal", lat: 14.2796, lng: 121.4156 }],
         rides: [{ mode: "bus", sign: "STA. CRUZ", goes: "Santa Cruz, Laguna", back: "CALAMBA / BUENDIA", goesBack: "Calamba" }] },
       { from: ["calamba", "cabuyao", "los-banos", "santa-rosa", "binan"], to: ["liliw", "nagcarlan"],
@@ -418,6 +510,13 @@ TARA.config = {
       { from: ["calamba", "cabuyao", "los-banos", "santa-rosa", "binan"], to: ["san-pablo", "lucban"],
         stops: [{ name: "Calamba Crossing", lat: 14.2073, lng: 121.1565 }, { name: "San Pablo City terminal", lat: 14.0698, lng: 121.3229 }],
         rides: [{ mode: "bus", sign: "SAN PABLO / LUCENA", goes: "San Pablo", back: "CALAMBA / BUENDIA", goesBack: "Calamba" }] },
+      { from: ["calamba", "cabuyao", "los-banos", "santa-rosa", "binan"], to: ["lucena", "tayabas"],
+        stops: [{ name: "Calamba Crossing", lat: 14.2073, lng: 121.1565 }, { name: "Lucena Grand Terminal", lat: 13.9440, lng: 121.6040 }],
+        rides: [{ mode: "bus", sign: "LUCENA", goes: "Lucena", back: "CALAMBA / BUENDIA", goesBack: "Calamba" }] },
+      { from: ["calamba", "cabuyao", "los-banos", "santa-rosa"], to: ["batangas-city"],
+        stops: [{ name: "Calamba Crossing", lat: 14.2073, lng: 121.1565 }, { name: "Tanauan (Big Ben) terminal", lat: 14.0863, lng: 121.1497 }, { name: "Batangas Grand Terminal", lat: 13.7811, lng: 121.0742 }],
+        rides: [{ mode: "jeep", sign: "TANAUAN", goes: "Tanauan, Batangas", back: "CALAMBA", goesBack: "Calamba" },
+          { mode: "bus", sign: "BATANGAS", goes: "Batangas City", back: "TANAUAN / MANILA", goesBack: "Tanauan" }] },
       { from: ["calamba", "cabuyao", "los-banos", "santa-rosa"], to: ["lipa", "taal"],
         stops: [{ name: "Calamba Crossing", lat: 14.2073, lng: 121.1565 }, { name: "Tanauan (Big Ben) terminal", lat: 14.0863, lng: 121.1497 }],
         rides: [{ mode: "jeep", sign: "TANAUAN", goes: "Tanauan, Batangas", back: "CALAMBA", goesBack: "Calamba" }] },
