@@ -20,6 +20,12 @@
 - **Trips**: save plans, tick off steps as you go, turn on reminders, **download a calendar file** with alarms, share the itinerary, or open it in Google Maps.
 - **Profile**: traveler type, home and current location, saved places, dark mode, notifications, install the app, log out, and delete your data.
 
+### New in this version
+- **Destinations (Klook-style).** Choose a city or a whole province (Laguna, Metro Manila, Cavite, Batangas, Rizal, Quezon; 22 cities and towns, 63 featured places). Explore only shows places in the destination you picked, and each city has a guide page with top things to do, where to eat, pasalubong, a map and "Plan a day here".
+- **Fuller day plans.** "Leave for home at" is your real departure time, and the day fills with the best spots until then. A meter says **Too many stops** (and names the ones that won't fit), **Just right**, or **Free time left** (with suggestions). **Edit stops** lists every place in the area with duration, fee and hours.
+- **Live trip mode.** Follow your trip step by step. GPS shows the distance to your next stop and alerts you when it's time to get off. It also tells you if you're running late, suggests what to skip, and can keep the screen on.
+- **More transit.** LRT-1, LRT-2 and MRT-3 with transfers. More bus terminals (Cubao, San Pablo, Sta. Cruz, Tagaytay, Batangas, Lipa, Lemery). Common provincial routes such as Calamba → Sta. Rosa → Tagaytay by jeepney.
+
 ## Where the data comes from
 
 | Feature | Source | Needs internet |
@@ -43,7 +49,7 @@ All of these are free and need no API keys.
 index.html            app shell and icon set
 css/tokens.css        design tokens: colors, fonts, spacing, radii, motion
 css/app.css           all components and layouts
-js/config.js          places, categories, transit hubs, fares, discounts
+js/config.js          destinations (province → city), places, rail lines, terminals, routes, fares, discounts
 js/core.js            helpers, router, toasts, sheets, place artwork
 js/services.js        accounts, location, places, photos, weather
 js/planner.js         route, fare and itinerary engine, reminders, calendar export

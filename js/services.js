@@ -216,8 +216,50 @@
   /* ======================================================================
      PLACES
      ====================================================================== */
+  /* ======================================================================
+     DESTINATIONS — province → city hierarchy (Klook-style browsing)
+     ====================================================================== */
+  var cityList = [], cityById = {}, provById = {};
+  C.destinations.forEach(function (prov) {
+    provById[prov.id] = prov;
+    prov.cities.forEach(function (c) { c.province = prov.id; c.provinceName = prov.name; cityList.push(c); cityById[c.id] = c; });
+  });
+  T.dest = {
+    provinces: function () { return C.destinations; },
+    province: function (id) { return provById[id] || null; },
+    cities: function () { return cityList; },
+    city: function (id) { return cityById[id] || null; },
+    // the city a point belongs to (closest center relative to the city's radius)
+    cityOf: function (pt) {
+      if (!pt || pt.lat == null) return null;
+      var best = null, br = 1e9;
+      cityList.forEach(function (c) { var r = T.geo.distance(pt, c) / c.radius; if (r < br) { br = r; best = c; } });
+      return br <= 1.15 ? best : null;
+    },
+    current: function () {
+      var loc = T.location.get();
+      var byName = null, label = String(loc.label || "").toLowerCase();
+      cityList.forEach(function (c) { if (!byName && label.indexOf(c.name.toLowerCase().replace(/ \(.*\)/, "")) > -1) byName = c; });
+      return byName || this.cityOf(loc);
+    },
+    label: function (c) { return c ? c.name + ", " + c.provinceName : ""; },
+    places: function (scope) {
+      if (!scope) return C.places;
+      return C.places.filter(function (p) {
+        return scope.type === "province" ? (cityById[p.city] || {}).province === scope.id : p.city === scope.id;
+      });
+    },
+    count: function (scope) { return this.places(scope).length; },
+  };
+
   var index = {};
-  C.places.forEach(function (p) { p.source = "guide"; index[p.id] = p; });
+  C.places.forEach(function (p) {
+    p.source = "guide";
+    if (!p.city) { var c = T.dest.cityOf(p); p.city = c ? c.id : null; }
+    index[p.id] = p;
+  });
+  // cities as pseudo-places (for photos and maps)
+  cityList.forEach(function (c) { index["city:" + c.id] = { id: "city:" + c.id, name: c.name, cat: "other", lat: c.lat, lng: c.lng, wiki: c.wiki, area: c.provinceName }; });
   var osmSaved = store.get("tara.osmplaces", {});
   Object.keys(osmSaved).forEach(function (k) { index[k] = osmSaved[k]; });
 
@@ -262,6 +304,7 @@
       wiki: t.wikipedia || null, image: /^https:\/\//.test(t.image || "") ? t.image : null,
       desc: extra.length ? extra.join(" · ") : "", visit: cat === "food" || cat === "cafe" ? 60 : cat === "mall" ? 90 : 45,
       price: cat === "food" ? (t.amenity === "fast_food" ? 1 : 2) : null,
+      city: (T.dest.cityOf({ lat: lat, lng: lng }) || {}).id || null,
     };
   }
 
@@ -314,7 +357,10 @@
       var near = opts.near || T.location.get();
       var list = C.places.concat(opts.extra || []);
       var q = String(opts.q || "").trim().toLowerCase();
+      var sc = opts.scope;
       list = list.filter(function (p) {
+        if (sc && sc.type === "city" && p.city !== sc.id) return false;
+        if (sc && sc.type === "province" && (T.dest.city(p.city) || {}).province !== sc.id) return false;
         if (opts.cat && p.cat !== opts.cat) return false;
         if (q && [p.name, p.area, p.address, p.desc, T.cat(p.cat).label].join(" ").toLowerCase().indexOf(q) < 0) return false;
         return true;
@@ -383,13 +429,14 @@
       var lang = "en", title = p.wiki;
       var m = /^([a-z]{2,3}):(.+)$/.exec(title);
       if (m) { lang = m[1]; title = m[2]; }
-      var key = lang + ":" + title;
+      var key = "v2:" + lang + ":" + title;
       if (key in photoCache) return Promise.resolve(photoCache[key] || null);
       if (pending[key]) return pending[key];
-      pending[key] = fetchJSON("https://" + lang + ".wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(title.replace(/ /g, "_")), null, 10000)
+      var api = "https://" + lang + ".wikipedia.org/w/api.php?action=query&format=json&formatversion=2&prop=pageimages&piprop=thumbnail&pithumbsize=800&redirects=1&origin=*&titles=" + encodeURIComponent(title);
+      pending[key] = fetchJSON(api, null, 10000)
         .then(function (j) {
-          var src = j.thumbnail && j.thumbnail.source;
-          if (src) src = src.replace(/\/(\d+)px-/, "/800px-");
+          var pg = j && j.query && j.query.pages && j.query.pages[0];
+          var src = pg && pg.thumbnail && pg.thumbnail.source;
           photoCache[key] = src || "";
           store.set("tara.photos", photoCache);
           return src || null;

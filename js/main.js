@@ -68,7 +68,7 @@
 
   /* ---------- Routes ---------- */
   var R = T.router;
-  ["welcome", "login", "signup", "setup", "home", "explore", "place", "plan", "trips", "trip", "profile", "notfound"].forEach(function (n) {
+  ["welcome", "login", "signup", "setup", "home", "explore", "city", "place", "plan", "trips", "trip", "live", "profile", "notfound"].forEach(function (n) {
     R.on(n, function (r) { T.views[n](r); });
   });
   var open = { welcome: 1, login: 1, signup: 1 };

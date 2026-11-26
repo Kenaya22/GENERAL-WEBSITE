@@ -17,6 +17,7 @@
      SHARED PIECES
      ====================================================================== */
   function mount(html, opts) {
+    if (T.live) T.live.stop();
     T._maps.forEach(function (m) { try { m.remove(); } catch (e) {} });
     T._maps = [];
     var v = view();
@@ -120,14 +121,22 @@
       '<p class="fine">Address search by OpenStreetMap. Typed addresses are matched to the nearest known spot when offline.</p>';
     T.sheet.open(title, html, { size: "tall" });
   };
+  function pickCityBtn(c) {
+    var n = T.dest.count({ type: "city", id: c.id });
+    return '<button class="pick-item" type="button" data-action="pick-city" data-id="' + c.id + '"><span class="pick-ic cat--other">' + icon("map") + "</span><span><strong>" + esc(c.name) + " (whole city)</strong><small>" + esc(c.provinceName) + " · " + n + " things to do</small></span></button>";
+  }
   function pickDefaults() {
     if (pickMode !== "destination") return "";
     var here = T.location.get();
-    return '<p class="label">Popular destinations</p>' + C.dayTrips.concat(["rizal-shrine", "pansol"]).map(function (id) {
+    return '<p class="label">Popular places</p>' + C.dayTrips.concat(["rizal-shrine", "pansol"]).map(function (id) {
       var p = T.places.get(id);
       return p ? pickPlaceBtn(p, T.geo.distance(here, p)) : "";
-    }).join("");
+    }).join("") + '<p class="label">Or plan a whole city</p>' + C.popularCities.slice(0, 6).map(function (id) { return pickCityBtn(T.dest.city(id)); }).join("");
   }
+  T.actions["pick-city"] = function (el) {
+    var c = T.dest.city(el.dataset.id);
+    finishPick({ name: c.name, label: T.dest.label(c), lat: c.lat, lng: c.lng, cityId: c.id });
+  };
   function pickPlaceBtn(p, d) {
     return '<button class="pick-item" type="button" data-action="pick-place" data-id="' + esc(p.id) + '">' +
       '<span class="pick-ic cat--' + T.cat(p.cat).id + '">' + icon(T.cat(p.cat).icon) + "</span><span><strong>" + esc(p.name) + "</strong><small>" + esc(p.area) + (d != null ? " · " + T.km(d) : "") + "</small></span></button>";
@@ -140,7 +149,9 @@
     if (!q) { box.innerHTML = pickDefaults(); return; }
     var here = T.location.get();
     var local = T.places.query({ q: q, near: here }).slice(0, 5);
-    var localHtml = local.length ? '<p class="label">Places</p>' + local.map(function (x) { return pickPlaceBtn(x.p, x.d); }).join("") : "";
+    var cityHits = pickMode === "destination" ? T.dest.cities().filter(function (c) { return c.name.toLowerCase().indexOf(q.toLowerCase()) > -1; }).slice(0, 3) : [];
+    var localHtml = (cityHits.length ? '<p class="label">Cities</p>' + cityHits.map(pickCityBtn).join("") : "") +
+      (local.length ? '<p class="label">Places</p>' + local.map(function (x) { return pickPlaceBtn(x.p, x.d); }).join("") : "");
     box.innerHTML = localHtml + (q.length >= 3 ? loader("Searching addresses…") : "");
     if (q.length < 3) return;
     pickTimer = setTimeout(function () {
@@ -162,7 +173,7 @@
   }
   T.actions["pick-place"] = function (el) {
     var p = T.places.get(el.dataset.id);
-    finishPick({ name: p.name, label: p.name + ", " + p.area, lat: p.lat, lng: p.lng, placeId: p.id });
+    finishPick({ name: p.name, label: p.name + ", " + p.area, lat: p.lat, lng: p.lng, placeId: p.id, cityId: p.city });
   };
   T.actions["pick-addr"] = function (el) {
     var r = lastResults[Number(el.dataset.i)];
@@ -338,7 +349,9 @@
   T.views.home = function () {
     var u = T.auth.current();
     var here = T.location.get();
-    var near = T.places.query({ near: here }).slice(0, 8);
+    var curCity = T.dest.current();
+    var near = curCity ? T.places.query({ near: here, scope: { type: "city", id: curCity.id }, sort: "rating" }) : [];
+    if (near.length < 4) near = T.places.query({ near: here }).slice(0, 8);
     var trip = T.trips.next();
     var html =
       '<section class="home-hero">' +
@@ -353,7 +366,13 @@
         return '<a class="cat-tile cat--' + c.id + '" href="#/explore?cat=' + c.id + '"><span>' + icon(c.icon) + "</span>" + esc(c.short) + "</a>";
       }).join("") + "</div></section>" +
       (trip ? '<section class="section">' + nextTripCard(trip) + "</section>" : "") +
-      '<section class="section"><div class="sec-head"><h2>Popular near you</h2><a href="#/explore">See all</a></div>' +
+      '<section class="section"><div class="sec-head"><h2>Destinations</h2><button class="link-strong" type="button" data-action="home-dest">All destinations</button></div>' +
+      '<div class="hscroll hscroll--dest">' + C.popularCities.map(function (id) {
+        var c = T.dest.city(id), n = cityCount(c);
+        return '<a class="dcard" href="#/city/' + c.id + '"><div class="ph dcard__ph" data-photo="city:' + c.id + '">' + T.art({ name: c.name, cat: "other" }) + '</div><span class="dcard__shade"></span>' +
+          '<span class="dcard__body"><small>' + esc(c.provinceName) + "</small><strong>" + esc(c.name) + "</strong><em>" + n + " thing" + (n === 1 ? "" : "s") + " to do</em></span></a>";
+      }).join("") + "</div></section>" +
+      '<section class="section"><div class="sec-head"><h2>' + (curCity && near[0] && near[0].p.city === curCity.id ? "Popular in " + esc(curCity.name) : "Popular near you") + '</h2><a href="#/explore">See all</a></div>' +
       '<div class="hscroll">' + near.map(function (x) { return placeCard(x.p, x.d); }).join("") + "</div></section>" +
       '<section class="section"><div class="sec-head"><h2>Around ' + esc(here.label.split(",")[0]) + '</h2><a href="#/explore">More</a></div>' +
       '<div class="rows" id="home-nearby">' + loader("Finding places around you…") + "</div></section>" +
@@ -400,9 +419,11 @@
   }
   function nextTripCard(trip) {
     var dep = new Date(trip.option.depart);
-    return '<a class="next-trip" href="#/trip/' + trip.id + '"><div class="next-trip__top"><span class="badge">' + icon("ticket") + "Next trip</span><span>" + esc(countdown(dep)) + "</span></div>" +
+    var live = new Date() >= T.addMin(dep, -60);
+    return '<a class="next-trip" href="#/' + (live ? "live/" : "trip/") + trip.id + '"><div class="next-trip__top"><span class="badge">' + icon(live ? "route" : "ticket") + (live ? "Trip in progress" : "Next trip") + "</span><span>" + esc(live ? "Open live guide →" : countdown(dep)) + "</span></div>" +
       "<h3>" + esc(trip.to.name) + "</h3><p>" + esc(T.date(dep)) + " · leave " + esc(T.time(dep)) + " · " + esc(trip.option.title) + "</p></a>";
   }
+  T.actions["home-dest"] = function () { T.pickDest({ onPick: function (sc) { T.router.go(sc.type === "city" ? "city/" + sc.id : "explore?province=" + sc.id); } }); };
   function countdown(d) {
     var ms = d - new Date();
     if (ms < 0) return "Today";
@@ -414,16 +435,80 @@
   T.countdown = countdown;
 
   /* ======================================================================
-     EXPLORE
+     DESTINATIONS (Klook-style): pick a city or a whole province
      ====================================================================== */
+  var destCb = null;
+  function cityCount(c) { return T.dest.count({ type: "city", id: c.id }); }
+  function cityTile(c) {
+    return '<button class="dest-tile" type="button" data-action="dest-pick" data-type="city" data-id="' + c.id + '">' +
+      '<div class="ph dest-tile__ph" data-photo="city:' + c.id + '">' + T.art({ name: c.name, cat: "other" }) + "</div>" +
+      '<span class="dest-tile__shade"></span><span class="dest-tile__body"><strong>' + esc(c.name) + "</strong><small>" + esc(c.provinceName) + "</small></span></button>";
+  }
+  function cityRow(c) {
+    var n = cityCount(c);
+    return '<button class="pick-item" type="button" data-action="dest-pick" data-type="city" data-id="' + c.id + '">' + icon("pin") +
+      "<span><strong>" + esc(c.name) + "</strong><small>" + esc(c.provinceName) + " · " + n + " place" + (n === 1 ? "" : "s") + "</small></span>" + icon("chev-r") + "</button>";
+  }
+  function destDefault() {
+    return '<p class="label">Popular destinations</p><div class="dest-grid">' + C.popularCities.map(function (id) { return cityTile(T.dest.city(id)); }).join("") + "</div>" +
+      '<p class="label">Browse by province</p>' + T.dest.provinces().map(function (pv) {
+        var n = T.dest.count({ type: "province", id: pv.id });
+        return '<details class="prov"><summary><span><strong>' + esc(pv.name) + "</strong><small>" + esc(pv.blurb) + " · " + n + " places</small></span>" + icon("chev-r") + "</summary>" +
+          '<button class="pick-item pick-item--all" type="button" data-action="dest-pick" data-type="province" data-id="' + pv.id + '">' + icon("map") + "<span><strong>All of " + esc(pv.name) + "</strong><small>" + pv.cities.length + " cities and towns</small></span></button>" +
+          pv.cities.map(cityRow).join("") + "</details>";
+      }).join("");
+  }
+  T.pickDest = function (opts) {
+    destCb = opts.onPick;
+    var cur = T.dest.current();
+    var body = T.sheet.open("Where to explore?",
+      '<div class="search-field">' + icon("search") + '<input class="input" type="search" autocomplete="off" data-input="dest-q" placeholder="Search a city, town or province"></div>' +
+      (cur ? '<button class="locate-btn" type="button" data-action="dest-pick" data-type="city" data-id="' + cur.id + '">' + icon("locate") + "<span><strong>Near you · " + esc(cur.name) + "</strong><small>" + esc(cur.provinceName) + " · " + cityCount(cur) + " featured places + live places nearby</small></span></button>" : "") +
+      '<div id="dest-results">' + destDefault() + "</div>", { size: "tall" });
+    T.photos.hydrate(body);
+  };
+  T.inputs["dest-q"] = function (el) {
+    var q = el.value.trim().toLowerCase(), box = $("#dest-results");
+    if (!q) { box.innerHTML = destDefault(); T.photos.hydrate(box); return; }
+    var provs = T.dest.provinces().filter(function (pv) { return pv.name.toLowerCase().indexOf(q) > -1; });
+    var cities = T.dest.cities().filter(function (c) { return (c.name + " " + c.provinceName).toLowerCase().indexOf(q) > -1; });
+    box.innerHTML = (provs.length ? '<p class="label">Provinces</p>' + provs.map(function (pv) {
+      return '<button class="pick-item" type="button" data-action="dest-pick" data-type="province" data-id="' + pv.id + '">' + icon("map") + "<span><strong>All of " + esc(pv.name) + "</strong><small>" + pv.cities.length + " cities and towns</small></span>" + icon("chev-r") + "</button>";
+    }).join("") : "") + (cities.length ? '<p class="label">Cities & towns</p>' + cities.map(cityRow).join("") : "") +
+      (!provs.length && !cities.length ? '<p class="fine">No destination matches “' + esc(el.value) + "”. We're adding more cities soon.</p>" : "");
+  };
+  T.actions["dest-pick"] = function (el) {
+    var cb = destCb; destCb = null;
+    T.sheet.close();
+    if (cb) cb({ type: el.dataset.type, id: el.dataset.id });
+  };
+
+  /* ======================================================================
+     EXPLORE — places in one destination at a time
+     ====================================================================== */
+  function scopeLabel(sc) {
+    if (!sc) return { name: "All destinations", sub: "Every featured place" };
+    if (sc.type === "province") { var pv = T.dest.province(sc.id); return { name: "All of " + pv.name, sub: pv.region }; }
+    var c = T.dest.city(sc.id); return { name: c.name, sub: c.provinceName };
+  }
+  function isHereScope(sc) { var cur = T.dest.current(); return !!(sc && cur && sc.type === "city" && sc.id === cur.id); }
   T.views.explore = function (r) {
     var st = T.state.explore;
+    if (r.query.city) st.scope = { type: "city", id: r.query.city };
+    else if (r.query.province) st.scope = { type: "province", id: r.query.province };
+    else if (st.scope === undefined) { var cur = T.dest.current(); st.scope = cur ? { type: "city", id: cur.id } : null; }
     if (r.query.cat != null) st.cat = r.query.cat;
     if (r.query.q != null) st.q = r.query.q;
     var here = T.location.get();
-    var html = pageHead("Explore", { sub: icon("pin") + '<button class="link" type="button" data-action="change-location">' + esc(here.label) + "</button>", sticky: false }) +
+    var lab = scopeLabel(st.scope), mine = isHereScope(st.scope);
+    var html =
+      '<header class="ex-head">' +
+      '<button class="dest-btn" type="button" data-action="explore-dest"><small>' + (mine ? icon("locate") + "Exploring near you" : "Exploring") + "</small>" +
+      "<strong>" + esc(lab.name) + icon("chev-r", "dest-btn__chev") + "</strong><span>" + esc(lab.sub) + "</span></button>" +
+      (st.scope && st.scope.type === "city" ? '<a class="btn btn--ghost btn--sm" href="#/city/' + st.scope.id + '">' + icon("info") + "City guide</a>" : "") +
+      "</header>" +
       '<div class="explore-bar">' +
-      '<div class="search-field">' + icon("search") + '<input class="input" id="ex-q" type="search" placeholder="Search places, food, malls…" value="' + esc(st.q) + '" data-input="explore-q"' + (r.query.focus ? " autofocus" : "") + "></div>" +
+      '<div class="search-field">' + icon("search") + '<input class="input" id="ex-q" type="search" placeholder="Search in ' + esc(lab.name) + '…" value="' + esc(st.q) + '" data-input="explore-q"' + (r.query.focus ? " autofocus" : "") + "></div>" +
       '<div class="chips" role="tablist">' + ['<button class="chip" type="button" data-action="explore-cat" data-cat="" aria-selected="' + (!st.cat) + '">All</button>'].concat(C.categories.map(function (c) {
         return '<button class="chip" type="button" data-action="explore-cat" data-cat="' + c.id + '" aria-selected="' + (st.cat === c.id) + '">' + icon(c.icon) + esc(c.short) + "</button>";
       })).join("") + "</div>" +
@@ -435,9 +520,8 @@
     mount(html, { nav: "explore" });
     if (r.query.focus) setTimeout(function () { var i = $("#ex-q"); if (i) i.focus(); }, 50);
     renderExplore();
-    var live = $("#ex-live");
-    if (!T.state.nearby.length) {
-      live.innerHTML = loader("Loading live places near you…");
+    if (mine && !T.state.nearby.length) {
+      $("#ex-live").innerHTML = loader("Loading live places near you…");
       loadNearby(here, function (items) {
         if (!$("#ex-live")) return;
         $("#ex-live").innerHTML = items ? "" : '<p class="fine center">Offline — showing featured places only. Connect to see every restaurant, mall and park near you.</p>';
@@ -445,9 +529,9 @@
       });
     }
   };
-  function exploreList() {
+  function exploreList(scope) {
     var st = T.state.explore, here = T.location.get();
-    return T.places.query({ cat: st.cat || null, q: st.q, near: here, sort: st.sort, extra: T.state.nearby });
+    return T.places.query({ cat: st.cat || null, q: st.q, near: here, sort: st.sort, scope: scope === undefined ? st.scope : scope, extra: isHereScope(st.scope) || scope === null ? T.state.nearby : [] });
   }
   function renderExplore() {
     var st = T.state.explore, here = T.location.get();
@@ -455,27 +539,37 @@
     var box = $("#ex-results"), mapEl = $("#ex-map");
     if (!box) return;
     $("#ex-count").textContent = list.length + " place" + (list.length === 1 ? "" : "s");
+    var center = st.scope && st.scope.type === "city" ? T.dest.city(st.scope.id) : list[0] ? list[0].p : here;
     if (st.mode === "map") {
       box.hidden = true; mapEl.hidden = false;
       T._maps.forEach(function (m) { try { m.remove(); } catch (e) {} });
       T._maps = [];
       mapEl.innerHTML = "";
-      var m = T.maps.make(mapEl, here, 13);
+      var m = T.maps.make(mapEl, center, 13);
       if (!m) return;
-      L.marker([here.lat, here.lng], { icon: T.maps.me() }).addTo(m).bindPopup("You are here");
-      var pts = [[here.lat, here.lng]];
+      var pts = [];
+      if (isHereScope(st.scope) || !st.scope) { L.marker([here.lat, here.lng], { icon: T.maps.me() }).addTo(m).bindPopup("You are here"); pts.push([here.lat, here.lng]); }
       list.slice(0, 150).forEach(function (x) {
         var p = x.p;
         L.marker([p.lat, p.lng], { icon: T.maps.pin(p) }).addTo(m)
-          .bindPopup('<a class="map-pop" href="#/place/' + encodeURIComponent(p.id) + '"><strong>' + esc(p.name) + "</strong><span>" + esc(T.cat(p.cat).label) + " · " + T.km(x.d) + "</span></a>");
-        if (x.d < 8) pts.push([p.lat, p.lng]);
+          .bindPopup('<a class="map-pop" href="#/place/' + encodeURIComponent(p.id) + '"><strong>' + esc(p.name) + "</strong><span>" + esc(T.cat(p.cat).label) + " · " + T.km(x.d) + " from you</span></a>");
+        pts.push([p.lat, p.lng]);
       });
       if (pts.length > 1) m.fitBounds(pts, { padding: [30, 30], maxZoom: 15 });
       return;
     }
     box.hidden = false; mapEl.hidden = true;
-    box.innerHTML = list.length ? '<div class="rows">' + list.slice(0, 80).map(function (x) { return placeRow(x.p, x.d); }).join("") + "</div>"
-      : empty("search", "No places found", st.q ? "Try a different word or category." : "Nothing in this category yet near you.", "");
+    var lab = scopeLabel(st.scope);
+    var html = list.length ? '<div class="rows">' + list.slice(0, 80).map(function (x) { return placeRow(x.p, x.d); }).join("") + "</div>"
+      : empty("search", "Nothing here yet", st.q ? "No match in " + lab.name + "." : "No " + (st.cat ? T.cat(st.cat).label.toLowerCase() : "places") + " listed in " + lab.name + " yet.",
+        '<button class="btn btn--ghost" type="button" data-action="explore-dest">' + icon("map") + "Browse other destinations</button>");
+    // Search across every destination when the current one has few matches
+    if (st.q && st.scope && list.length < 6) {
+      var ids = list.map(function (x) { return x.p.id; });
+      var others = exploreList(null).filter(function (x) { return ids.indexOf(x.p.id) < 0; }).slice(0, 12);
+      if (others.length) html += '<p class="label">In other destinations</p><div class="rows">' + others.map(function (x) { return placeRow(x.p, x.d); }).join("") + "</div>";
+    }
+    box.innerHTML = html;
     T.photos.hydrate(box);
   }
   var exTimer;
@@ -491,6 +585,57 @@
     T.state.explore.mode = el.dataset.mode;
     $$(".toggle2 button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === el)); });
     renderExplore();
+  };
+  T.actions["explore-dest"] = function () {
+    T.pickDest({ onPick: function (sc) { T.state.explore.scope = sc; T.state.explore.q = ""; T.router.go("explore", true); } });
+  };
+
+  /* ======================================================================
+     CITY GUIDE — Klook-style destination page
+     ====================================================================== */
+  T.views.city = function (r) {
+    var c = T.dest.city(r.param);
+    if (!c) { mount(pageHead("Destination", { back: true }) + empty("map", "Destination not found", "Try another city.", '<a class="btn btn--primary" href="#/explore">Explore</a>'), { nav: "explore" }); return; }
+    var here = T.location.get();
+    var d = T.geo.distance(here, c);
+    var quick = d > 3 ? T.planner.quick(here, { name: c.name, lat: c.lat, lng: c.lng }) : null;
+    var all = T.places.query({ near: c, scope: { type: "city", id: c.id }, sort: "rating" });
+    var todo = all.filter(function (x) { return ["food", "cafe", "market", "mall"].indexOf(x.p.cat) < 0; });
+    var eat = all.filter(function (x) { return x.p.cat === "food" || x.p.cat === "cafe"; });
+    var shop = all.filter(function (x) { return x.p.cat === "market" || x.p.cat === "mall"; });
+    var prov = T.dest.province(c.province);
+    var dh = function (x) { return { p: x.p, d: T.geo.distance(here, x.p) }; };
+    var html =
+      '<div class="place-hero">' + '<div class="ph place-hero__ph" data-photo="city:' + c.id + '">' + T.art({ name: c.name, cat: "other" }) + "</div>" + '<div class="place-hero__shade"></div>' +
+      '<div class="place-hero__bar"><button class="icon-btn icon-btn--glass" type="button" data-action="back" aria-label="Back">' + icon("chev-l") + '</button><span class="grow"></span></div>' +
+      '<div class="place-hero__title"><a class="crumb crumb--light" href="#/explore?province=' + prov.id + '">' + esc(prov.name) + " · " + esc(prov.region) + "</a><h1>" + esc(c.name) + "</h1><p>" + esc(c.blurb) + "</p></div></div>" +
+      '<div class="place-body">' +
+      '<div class="place-stats">' +
+      '<div class="stat"><strong class="stat__big">' + all.length + "</strong><small>featured places</small></div>" +
+      '<div class="stat"><strong class="stat__big">' + T.km(d) + "</strong><small>from you</small>" + (quick ? "<small>" + T.dur(quick.minutes) + " · from " + T.peso(quick.fare) + "</small>" : "") + "</div>" +
+      '<div class="stat"><strong class="stat__big" id="city-wx">—</strong><small>weather now</small></div></div>' +
+      '<div class="place-actions"><a class="btn btn--primary" href="#/plan?city=' + c.id + '">' + icon("route") + "Plan a day here</a>" +
+      '<a class="btn btn--ghost" href="#/explore?city=' + c.id + '">' + icon("compass") + "All places</a></div>" +
+      (todo.length ? '<section class="psec"><div class="sec-head"><h2>Top things to do</h2></div><div class="hscroll">' + todo.map(dh).map(function (x) { return placeCard(x.p, x.d); }).join("") + "</div></section>" : "") +
+      (eat.length ? '<section class="psec"><div class="sec-head"><h2>Where to eat</h2></div><div class="rows">' + eat.map(dh).map(function (x) { return placeRow(x.p, x.d); }).join("") + "</div></section>" : "") +
+      (shop.length ? '<section class="psec"><div class="sec-head"><h2>Shopping & pasalubong</h2></div><div class="rows">' + shop.map(dh).map(function (x) { return placeRow(x.p, x.d); }).join("") + "</div></section>" : "") +
+      (!all.length ? '<p class="muted psec">We\'re still adding featured places in ' + esc(c.name) + ". When you're there, Explore shows live restaurants, malls and parks around you.</p>" : "") +
+      '<section class="psec"><h2>Map</h2><div class="mini-map mini-map--tall" id="city-map"></div></section>' +
+      '<section class="psec"><h2>More in ' + esc(prov.name) + '</h2><div class="stop-chips">' + prov.cities.filter(function (x) { return x.id !== c.id; }).map(function (x) {
+        return '<a class="chip" href="#/city/' + x.id + '">' + icon("pin") + esc(x.name) + "</a>";
+      }).join("") + "</div></section>" +
+      '<p class="fine">Guide scores, hours and fees are estimates — check with each venue before you go. Cover photo via Wikipedia.</p></div>';
+    mount(html, { nav: "explore", cls: "view--place" });
+    T.weather.get(c).then(function (w) {
+      var el = $("#city-wx");
+      if (el && w && w.current) el.textContent = Math.round(w.current.temp) + "°C";
+    });
+    var m = T.maps.make($("#city-map"), c, 13);
+    if (m) {
+      var pts = [[c.lat, c.lng]];
+      all.forEach(function (x) { L.marker([x.p.lat, x.p.lng], { icon: T.maps.pin(x.p) }).addTo(m).bindPopup('<a class="map-pop" href="#/place/' + encodeURIComponent(x.p.id) + '"><strong>' + esc(x.p.name) + "</strong><span>" + esc(T.cat(x.p.cat).label) + "</span></a>"); pts.push([x.p.lat, x.p.lng]); });
+      if (pts.length > 1) m.fitBounds(pts, { padding: [30, 30], maxZoom: 15 });
+    }
   };
 
   /* ======================================================================
@@ -515,7 +660,8 @@
       '<div class="place-hero__bar"><button class="icon-btn icon-btn--glass" type="button" data-action="back" aria-label="Back">' + icon("chev-l") + "</button>" +
       '<span class="grow"></span><button class="icon-btn icon-btn--glass" type="button" data-action="share-place" data-id="' + esc(p.id) + '" aria-label="Share">' + icon("share") + "</button>" +
       '<button class="icon-btn icon-btn--glass" type="button" data-action="fav" data-id="' + esc(p.id) + '" aria-pressed="' + saved + '" aria-label="Save">' + icon(saved ? "heart-fill" : "heart") + "</button></div>" +
-      '<div class="place-hero__title">' + catChip(p) + "<h1>" + esc(p.name) + "</h1><p>" + icon("pin") + esc(p.address || p.area || "") + "</p></div></div>" +
+      '<div class="place-hero__title">' + catChip(p) + (T.dest.city(p.city) ? ' <a class="crumb crumb--light" href="#/city/' + p.city + '">' + esc(T.dest.city(p.city).provinceName) + " › " + esc(T.dest.city(p.city).name) + "</a>" : "") +
+      "<h1>" + esc(p.name) + "</h1><p>" + icon("pin") + esc(p.address || p.area || "") + "</p></div></div>" +
       '<div class="place-body">' +
       '<div class="place-stats">' +
       '<div class="stat">' + (score ? '<strong class="stat__big">' + score.toFixed(1) + "</strong>" + T.stars(score, 14) : '<strong class="stat__big">New</strong><small>No ratings yet</small>') + "<small>" + (p.rating ? "Guide score" : "") + (reviews.length ? (p.rating ? " + " : "") + reviews.length + " review" + (reviews.length > 1 ? "s" : "") : "") + "</small></div>" +
@@ -600,14 +746,18 @@
     return {
       from: { name: here.label.split(",")[0], label: here.label, lat: here.lat, lng: here.lng },
       to: null, date: T.isoDate(d), time: useNow && dep.getHours() < 15 ? T.pad(dep.getHours()) + ":" + T.pad(dep.getMinutes()) : "07:00",
-      pax: 1, type: T.traveler().id, ret: true, homeBy: "16:30", activities: true, optionId: null, include: null,
+      pax: 1, type: T.traveler().id, ret: true, homeBy: "17:00", activities: true, optionId: null, include: null,
     };
   }
   T.views.plan = function (r) {
     var dr = T.state.draft = T.state.draft || defaultDraft();
     if (r.query.to) {
       var p = T.places.get(r.query.to);
-      if (p && (!dr.to || dr.to.placeId !== p.id)) { dr.to = { name: p.name, label: p.name + ", " + p.area, lat: p.lat, lng: p.lng, placeId: p.id }; dr.optionId = null; dr.include = null; T.state.plan = null; }
+      if (p && (!dr.to || dr.to.placeId !== p.id)) { dr.to = { name: p.name, label: p.name + ", " + p.area, lat: p.lat, lng: p.lng, placeId: p.id, cityId: p.city }; dr.optionId = null; dr.include = null; T.state.plan = null; }
+    }
+    if (r.query.city) {
+      var cc = T.dest.city(r.query.city);
+      if (cc && (!dr.to || dr.to.placeId || dr.to.cityId !== cc.id)) { dr.to = { name: cc.name, label: T.dest.label(cc), lat: cc.lat, lng: cc.lng, cityId: cc.id }; dr.optionId = null; dr.include = null; T.state.plan = null; }
     }
     var html = pageHead("Plan a trip", { sub: "Routes, fares, discounts & a day plan", sticky: false }) +
       '<form class="plan-form card" data-submit="plan" novalidate>' +
@@ -623,10 +773,10 @@
       '<div class="field"><span class="field__label">' + icon("id") + "Traveler type</span>" + travelerSeg(dr.type, "plan-type") + "</div>" +
       '<div class="grid2">' +
       '<div class="field"><span class="field__label">' + icon("users") + 'Travelers</span><div class="stepper"><button type="button" data-action="pax" data-d="-1" aria-label="Fewer">' + icon("minus") + '</button><output id="pax">' + dr.pax + '</output><button type="button" data-action="pax" data-d="1" aria-label="More">' + icon("plus") + "</button></div></div>" +
-      '<label class="field"><span class="field__label">' + icon("home") + 'Head home by</span><input class="input" type="time" name="homeBy" value="' + dr.homeBy + '" data-input="plan-field"' + (dr.ret ? "" : " disabled") + "></label>" +
+      '<label class="field"><span class="field__label" id="leave-label">' + icon("home") + (dr.ret ? "Leave for home at" : "End my day at") + '</span><input class="input" type="time" name="homeBy" value="' + dr.homeBy + '" data-input="plan-field"></label>' +
       "</div>" +
       switchRow("ret", "Include return trip", "Plan the ride back home", dr.ret) +
-      switchRow("activities", "Plan my day there", "Things to do in order, lunch stop, entrance fees", dr.activities) +
+      switchRow("activities", "Plan my day there", "Fill my time with things to do, a lunch stop and entrance fees", dr.activities) +
       '<button class="btn btn--primary btn--block btn--lg" type="submit">' + icon("sparkle") + "Plan my trip</button>" +
       "</form>" +
       '<div id="plan-out"></div>';
@@ -639,7 +789,7 @@
   T.inputs["plan-field"] = function (el) {
     var dr = T.state.draft;
     if (el.type === "checkbox") dr[el.name] = el.checked; else dr[el.name] = el.value;
-    if (el.name === "ret") { var hb = $('[name="homeBy"]'); if (hb) hb.disabled = !el.checked; }
+    if (el.name === "ret") { var lb = $("#leave-label"); if (lb) lb.innerHTML = icon("home") + (el.checked ? "Leave for home at" : "End my day at"); }
   };
   T.actions.pax = function (el) {
     var dr = T.state.draft;
@@ -650,7 +800,7 @@
     T.pickLocation({ mode: "origin", onPick: function (loc) { T.state.draft.from = { name: loc.name || loc.label.split(",")[0], label: loc.label, lat: loc.lat, lng: loc.lng, placeId: loc.placeId }; T.state.plan = null; T.router.resolve(); } });
   };
   T.actions["plan-to"] = function () {
-    T.pickLocation({ mode: "destination", onPick: function (loc) { T.state.draft.to = { name: loc.name || loc.label.split(",")[0], label: loc.label, lat: loc.lat, lng: loc.lng, placeId: loc.placeId }; T.state.draft.include = null; T.state.plan = null; T.router.resolve(); } });
+    T.pickLocation({ mode: "destination", onPick: function (loc) { T.state.draft.to = { name: loc.name || loc.label.split(",")[0], label: loc.label, lat: loc.lat, lng: loc.lng, placeId: loc.placeId, cityId: loc.cityId || (loc.placeId && (T.places.get(loc.placeId) || {}).city) || null }; T.state.draft.include = null; T.state.plan = null; T.router.resolve(); } });
   };
   T.actions["plan-swap"] = function () {
     var dr = T.state.draft;
@@ -662,11 +812,11 @@
     var p = dr.date.split("-"), t = dr.time.split(":");
     return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]), Number(t[0]), Number(t[1]));
   }
-  function buildFromDraft(weather) {
+  function buildFromDraft(weather, includeOverride) {
     var dr = T.state.draft;
     var trav = C.travelerTypes.filter(function (t) { return t.id === dr.type; })[0] || T.traveler();
     return T.planner.build({ from: dr.from, to: dr.to, depart: draftDepart(dr), traveler: trav, pax: dr.pax, ret: dr.ret, homeBy: dr.homeBy,
-      activities: dr.activities, optionId: dr.optionId, include: dr.include, weather: weather });
+      activities: dr.activities, optionId: dr.optionId, include: includeOverride !== undefined ? includeOverride : dr.include, weather: weather });
   }
   T.submits.plan = function (form) {
     var dr = T.state.draft;
@@ -711,38 +861,129 @@
         '<span class="tl__ic">' + icon(modeIcon[l.mode]) + "</span>" +
         '<div class="tl__body"><strong>' + esc(l.text) + "</strong>" +
         (l.board ? '<p class="tl__board">' + icon("pin") + esc(l.board) + "</p>" : "") +
-        "<p>" + esc(T.planner.modeName[l.mode]) + " · " + T.dur(l.minutes) + (l.km > 0.2 ? " · " + T.km(l.km) : "") +
+        "<p>" + esc(T.planner.legName(l)) + " · " + T.dur(l.minutes) + (l.km > 0.2 ? " · " + T.km(l.km) : "") +
         (l.mode === "walk" ? "" : " · <b>" + (l.perCar ? T.peso(l.fareReg) + " per car" : l.fare ? T.peso(l.fare) : "—") + "</b>" + (l.saved > 0 ? ' <s class="muted">' + T.peso(l.fareReg) + "</s>" : "")) +
         (l.rush ? ' <span class="pill pill--warn">rush hour</span>' : "") + "</p>" +
         (l.tip ? '<p class="tl__tip">' + esc(l.tip) + "</p>" : "") +
+        (l.approx ? '<p class="tl__approx">' + icon("info") + "Common commuter route — confirm with the driver or terminal staff.</p>" : "") +
         (opts.check ? '<label class="tl__check"><input type="checkbox" data-input="trip-check" data-key="' + key + '"' + (done ? " checked" : "") + "><span>Done</span></label>" : "") +
         "</div></li>";
     }).join("") +
       '<li class="tl__item tl--arrive"><span class="tl__time">' + T.time(new Date(o.arrive)) + '</span><span class="tl__ic">' + icon("pin") + '</span><div class="tl__body"><strong>Arrive at ' + esc(opts.toName || "destination") + "</strong></div></li></ol>";
+  }
+  function moveText(mv) {
+    if (!mv || mv.minutes < 1) return "";
+    if (mv.mode === "walk") return mv.minutes + " min walk";
+    return T.planner.modeName[mv.mode] + " " + mv.minutes + " min · " + T.peso(mv.fare);
   }
   function dayTimeline(day, opts) {
     opts = opts || {};
     return '<ol class="tl tl--day">' + day.steps.map(function (s, i) {
       var key = "d" + i, done = opts.done && opts.done[key];
       var p = s.place;
+      var ic = s.kind === "meal" ? "utensils" : s.kind === "free" ? "sparkle" : T.cat(p.cat).icon;
+      var mv = moveText(s.move);
+      var money = s.kind === "visit" ? (s.fee ? "<b>" + T.peso(s.fee) + "</b>" + (s.feeReg > s.fee ? ' <s class="muted">' + T.peso(s.feeReg) + "</s>" : "") : "Free")
+        : s.kind === "meal" ? "about " + T.peso(s.cost) + "/person" : "";
       return '<li class="tl__item tl--' + s.kind + (done ? " is-done" : "") + '">' +
         '<span class="tl__time">' + T.time(new Date(s.start)) + "</span>" +
-        '<span class="tl__ic">' + icon(s.kind === "meal" ? "utensils" : T.cat(p.cat).icon) + "</span>" +
+        '<span class="tl__ic">' + icon(ic) + "</span>" +
         '<div class="tl__body">' + (p ? '<a class="tl__name" href="#/place/' + encodeURIComponent(p.id) + '">' + esc(s.name) + "</a>" : "<strong>" + esc(s.name) + "</strong>") +
-        "<p>" + T.time(new Date(s.start)) + " – " + T.time(new Date(s.end)) + (s.walk ? " · " + s.walk + " min walk" : "") +
-        (s.kind === "visit" ? " · " + (s.fee ? "<b>" + T.peso(s.fee) + "</b>" + (s.feeReg > s.fee ? ' <s class="muted">' + T.peso(s.feeReg) + "</s>" : "") : "Free") : " · about " + T.peso(s.cost) + "/person") + "</p>" +
+        "<p>" + T.time(new Date(s.start)) + " – " + T.time(new Date(s.end)) + " · " + T.dur(Math.round((new Date(s.end) - new Date(s.start)) / 60000)) + (money ? " · " + money : "") + "</p>" +
+        (mv ? '<p class="tl__move">' + icon(s.move.mode === "walk" ? "walk" : modeIcon[s.move.mode]) + "Getting there: " + esc(mv) + "</p>" : "") +
         (s.note ? '<p class="tl__tip">' + esc(s.note) + "</p>" : "") +
         (s.tip ? '<p class="tl__tip">' + esc(s.tip) + "</p>" : "") +
-        (opts.check ? '<label class="tl__check"><input type="checkbox" data-input="trip-check" data-key="' + key + '"' + (done ? " checked" : "") + "><span>Done</span></label>" : "") +
+        (opts.check && s.kind !== "free" ? '<label class="tl__check"><input type="checkbox" data-input="trip-check" data-key="' + key + '"' + (done ? " checked" : "") + "><span>Done</span></label>" : "") +
         "</div></li>";
     }).join("") + "</ol>";
   }
+  /* time-fit meter: too many / just right / free time */
+  function fitBlock(fit, leaveAt, ret) {
+    if (!fit) return "";
+    var pct = fit.available ? Math.min(100, Math.round(fit.used / fit.available * 100)) : 0;
+    var leave = T.time(new Date(leaveAt)), verb = ret ? "leave for home at " : "end your day at ";
+    var title, msg, ic;
+    if (fit.status === "over") {
+      ic = "info"; title = "Too many stops";
+      msg = fit.notFit.length + " stop" + (fit.notFit.length > 1 ? "s" : "") + " won't fit before you " + verb + leave + " (about " + T.dur(fit.overBy) + " more needed): " +
+        fit.notFit.map(function (p) { return esc(p.name) + " (" + T.dur(p.visit || 45) + ")"; }).join(", ") + ". Remove some, leave home earlier, or stay later.";
+    } else if (fit.status === "right") {
+      ic = "check"; title = "Just right";
+      msg = "Your stops fill the day nicely until you " + verb + leave + ".";
+    } else {
+      ic = "clock"; title = T.dur(fit.free) + " free";
+      msg = "You still have " + T.dur(fit.free) + " before you " + verb + leave + "." + (fit.suggestions.length ? " Add one of these:" : " Enjoy some free time!");
+    }
+    return '<div class="fit fit--' + fit.status + '"><div class="fit__top"><strong>' + icon(ic) + title + "</strong><span>" + T.dur(fit.used) + " of " + T.dur(fit.available) + " planned</span></div>" +
+      '<div class="fit__bar"><span style="width:' + (fit.status === "over" ? 100 : pct) + '%"></span></div><p>' + msg + "</p>" +
+      (fit.status === "free" && fit.suggestions.length ? '<div class="stop-chips">' + fit.suggestions.map(function (p) {
+        return '<button class="chip" type="button" data-action="add-stop" data-id="' + esc(p.id) + '">' + icon("plus") + esc(p.name) + " · " + T.dur(p.visit || 45) + "</button>";
+      }).join("") + "</div>" : "") + "</div>";
+  }
+  function currentStops(plan) { return plan.day.steps.filter(function (s) { return s.kind === "visit"; }).map(function (s) { return s.place.id; }); }
+  T.actions["add-stop"] = function (el) {
+    var ids = currentStops(T.state.plan).concat([el.dataset.id]);
+    T.state.draft.include = ids;
+    T.state.plan = buildFromDraft(T.state.weather);
+    renderPlan(T.state.plan, false);
+    T.toast("Added to your day", T.places.get(el.dataset.id).name, "plus");
+  };
+  T.actions["edit-stops"] = function () {
+    var plan = T.state.plan, sel = currentStops(plan);
+    var dep = new Date(plan.option.depart), days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    var pool = plan.day.pool.slice().sort(function (a, b) { return (sel.indexOf(b.id) > -1) - (sel.indexOf(a.id) > -1) || (T.places.score(b) || 0) - (T.places.score(a) || 0); });
+    var body = T.sheet.open("Choose your stops",
+      '<p class="muted">Tick what you want to see. We order them, check opening hours, add lunch, and tell you if everything fits before ' + T.time(new Date(plan.leaveAt)) + ".</p>" +
+      '<div id="stops-fit"></div>' +
+      '<div class="stops-list">' + pool.map(function (p) {
+        var closed = p.closed && p.closed.indexOf(dep.getDay()) > -1;
+        var fee = T.places.fee(p, plan.traveler);
+        var far = T.geo.distance(plan.to, p);
+        return '<label class="stop-row' + (closed ? " is-closed" : "") + '"><input type="checkbox" data-input="stop-pick" value="' + esc(p.id) + '"' + (sel.indexOf(p.id) > -1 ? " checked" : "") + (closed ? " disabled" : "") + ">" +
+          '<span class="ph stop-row__ph" data-photo="' + esc(p.id) + '">' + T.art(p) + "</span>" +
+          '<span class="stop-row__body"><strong>' + esc(p.name) + "</strong><small>" + esc(T.cat(p.cat).short) + " · " + T.dur(p.visit || 45) + " · " + (fee.amount ? T.peso(fee.amount) : fee.amount === 0 ? "Free" : "Fee varies") + " · " + T.km(far) + "</small>" +
+          "<small>" + (closed ? "Closed on " + days[dep.getDay()] + "s" : esc(T.places.hoursText(p))) + "</small></span>" +
+          '<span class="stop-row__check">' + icon("check") + "</span></label>";
+      }).join("") + "</div>" +
+      '<div class="sheet-foot"><button class="btn btn--ghost" type="button" data-action="stops-auto">' + icon("sparkle") + 'Auto-fill</button><button class="btn btn--primary" type="button" data-action="stops-apply">Apply</button></div>', { size: "tall" });
+    T.photos.hydrate(body);
+    updateStopsFit();
+  };
+  function pickedStops() { return $$('[data-input="stop-pick"]:checked').map(function (i) { return i.value; }); }
+  function updateStopsFit() {
+    var box = $("#stops-fit");
+    if (!box) return;
+    var ids = pickedStops();
+    var trial = buildFromDraft(T.state.weather, ids);
+    box.innerHTML = '<p class="label">' + ids.length + " selected</p>" + fitBlock(trial.day.fit, trial.leaveAt, trial.ret).replace(/data-action="add-stop"/g, 'data-action="pick-stop-chip"');
+  }
+  T.inputs["stop-pick"] = function () { updateStopsFit(); };
+  T.actions["pick-stop-chip"] = function (el) {
+    var cb = $('[data-input="stop-pick"][value="' + el.dataset.id + '"]');
+    if (cb) { cb.checked = true; cb.closest(".stop-row").scrollIntoView({ block: "nearest" }); }
+    updateStopsFit();
+  };
+  T.actions["stops-apply"] = function () {
+    T.state.draft.include = pickedStops();
+    T.state.plan = buildFromDraft(T.state.weather);
+    T.sheet.close();
+    renderPlan(T.state.plan, false);
+    var f = T.state.plan.day.fit;
+    T.toast(f.status === "over" ? "Too many stops" : f.status === "right" ? "Just right!" : "Plan updated", f.status === "over" ? f.notFit.length + " won't fit — see the list." : "", f.status === "over" ? "info" : "check", f.status === "over" ? "warn" : "");
+  };
+  T.actions["stops-auto"] = function () {
+    T.state.draft.include = null;
+    T.state.plan = buildFromDraft(T.state.weather);
+    T.sheet.close();
+    renderPlan(T.state.plan, false);
+    T.toast("Auto-filled your day", "We picked the best-rated spots that fit.", "sparkle");
+  };
   function budgetCard(plan) {
     var b = plan.budget;
     var savedFares = plan.option.legs.reduce(function (s, l) { return s + (l.saved || 0); }, 0) + (plan.back ? plan.back.legs.reduce(function (s, l) { return s + (l.saved || 0); }, 0) : 0);
     var saved = savedFares + (plan.fees.saved || 0);
     return '<div class="budget">' +
-      "<div><span>Fares" + (plan.ret ? " (round trip)" : "") + "</span><b>" + T.peso(b.fares) + "</b></div>" +
+      "<div><span>Fares" + (plan.ret ? " (round trip)" : "") + (b.moves ? " incl. rides between stops" : "") + "</span><b>" + T.peso(b.fares) + "</b></div>" +
       (plan.activitiesOn ? "<div><span>Entrance fees</span><b>" + T.peso(b.fees) + "</b></div><div><span>Food (estimate)</span><b>" + T.peso(b.meals) + "</b></div>" : "") +
       '<div class="budget__total"><span>Total per person</span><b>' + T.peso(b.perPerson) + "</b></div>" +
       (plan.pax > 1 ? "<div><span>For " + plan.pax + " travelers</span><b>" + T.peso(b.group) + "</b></div>" : "") +
@@ -780,12 +1021,11 @@
       }).join("") + "</div>" +
       '<div class="card"><div class="sec-head"><h3>' + icon("route") + " Getting there</h3><span class=\"muted\">" + T.dur(o.minutes) + " · " + T.peso(o.fare) + "/person</span></div>" +
       legsTimeline(o, { toName: plan.to.name }) + "</div>" +
-      (plan.activitiesOn ? '<div class="card"><div class="sec-head"><h3>' + icon("sparkle") + " Your day in " + esc(plan.to.name) + "</h3></div>" +
-        (plan.day.steps.length ? dayTimeline(plan.day) : '<p class="muted">No featured spots within walking distance yet. Explore nearby places after you arrive.</p>') +
-        (plan.day.pool.length ? '<p class="label">Places within walking distance</p><div class="stop-chips">' + plan.day.pool.filter(function (p) { return !p.hub; }).map(function (p) {
-          var on = visits.indexOf(p.id) > -1;
-          return '<button class="chip" type="button" data-action="plan-toggle-stop" data-id="' + esc(p.id) + '" aria-pressed="' + on + '">' + icon(on ? "check" : "plus") + esc(p.name) + "</button>";
-        }).join("") + "</div>" : "") +
+      (plan.activitiesOn ? '<div class="card"><div class="sec-head"><h3>' + icon("sparkle") + " Your day in " + esc(plan.to.name) + "</h3>" +
+        '<button class="btn btn--sm btn--ghost" type="button" data-action="edit-stops">' + icon("edit") + "Edit stops</button></div>" +
+        (plan.leaveAdjusted ? '<p class="fine">Your leave time was too close to arrival, so we planned until ' + T.time(new Date(plan.leaveAt)) + ".</p>" : "") +
+        fitBlock(plan.day.fit, plan.leaveAt, plan.ret) +
+        (plan.day.steps.length ? dayTimeline(plan.day) : '<p class="muted">No featured spots here yet. Explore nearby places after you arrive.</p>') +
         (plan.day.skipped.length ? '<p class="fine">' + plan.day.skipped.map(function (s) { return esc(s.place.name) + ": " + esc(s.why); }).join(" · ") + "</p>" : "") + "</div>" : "") +
       (plan.back ? '<div class="card"><div class="sec-head"><h3>' + icon("home") + " Going home</h3><span class=\"muted\">" + T.dur(plan.back.minutes) + " · " + T.peso(plan.back.fare) + "/person</span></div>" +
         legsTimeline(plan.back, { toName: plan.from.name }) + "</div>" : "") +
@@ -869,7 +1109,8 @@
       actions: '<button class="icon-btn" type="button" data-action="trip-delete" data-id="' + t.id + '" aria-label="Delete trip">' + icon("trash") + "</button>" }) +
       '<div class="trip-top card">' +
       '<div class="trip-top__row"><div><small>Leave</small><b>' + T.time(dep) + "</b></div>" + icon("arrow") + "<div><small>Arrive</small><b>" + T.time(new Date(t.option.arrive)) + "</b></div>" +
-      (t.back ? icon("home") + "<div><small>Home by</small><b>" + T.time(new Date(t.back.arrive)) + "</b></div>" : "") + "</div>" +
+      (t.back ? icon("home") + "<div><small>Leave for home</small><b>" + T.time(new Date(t.back.depart)) + "</b></div>" : "") + "</div>" +
+      (status !== "Completed" ? '<a class="btn btn--primary btn--block btn--lg live-start" href="#/live/' + t.id + '">' + icon("route") + (status === "In progress" ? "Continue live trip" : "Start live trip") + "</a>" : "") +
       switchRow2("trip-notify", "Remind me", "Notifications for each step while the app is open, plus calendar alarms", t.notify, t.id) +
       '<div class="result__actions result__actions--tight"><button class="btn btn--ghost btn--sm" type="button" data-action="trip-ics" data-id="' + t.id + '">' + icon("calendar") + "Add to calendar</button>" +
       '<button class="btn btn--ghost btn--sm" type="button" data-action="trip-share" data-id="' + t.id + '">' + icon("share") + "Share</button>" +
@@ -982,6 +1223,146 @@
     try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf("tara.") === 0) localStorage.removeItem(k); }); } catch (e) {}
     location.hash = "#/welcome";
     location.reload();
+  };
+
+  /* ======================================================================
+     LIVE TRIP MODE — follows the trip step by step with GPS
+     ====================================================================== */
+  var live = { watch: null, wake: null, alerted: {}, map: null, me: null, tripId: null };
+  T.live = {
+    stop: function () {
+      if (live.watch != null && navigator.geolocation) navigator.geolocation.clearWatch(live.watch);
+      live.watch = null; live.map = null; live.me = null;
+      if (live.wake) { try { live.wake.release(); } catch (e) {} live.wake = null; }
+    },
+  };
+  function liveIcon(st) {
+    if (st.type === "leg") return modeIcon[st.mode];
+    if (st.type === "meal") return "utensils";
+    if (st.type === "free") return "sparkle";
+    return st.place ? T.cat(st.place.cat).icon : "pin";
+  }
+  function liveAlert(title, body, tripId) {
+    T.toast(title, body, "bell");
+    try { if (navigator.vibrate) navigator.vibrate([250, 120, 250]); } catch (e) {}
+    if (window.Notification && Notification.permission === "granted" && navigator.serviceWorker) {
+      navigator.serviceWorker.ready.then(function (reg) { reg.showNotification(title, { body: body, icon: "icons/icon-192.png", tag: "tara-live-" + tripId, renotify: true, data: { url: "#/live/" + tripId } }); }).catch(function () {});
+    }
+  }
+  T.views.live = function (r) {
+    var t = T.trips.get(r.param);
+    if (!t) { mount(pageHead("Live trip", { back: true }) + empty("ticket", "Trip not found", "It may have been deleted.", '<a class="btn btn--primary" href="#/trips">My trips</a>'), { nav: "trips" }); return; }
+    t.done = t.done || {};
+    var steps = T.planner.steps(t);
+    var idx = -1;
+    for (var i = 0; i < steps.length; i++) if (!t.done[steps[i].key]) { idx = i; break; }
+    var doneCount = steps.filter(function (s) { return t.done[s.key]; }).length;
+    var pct = Math.round(doneCount / steps.length * 100);
+
+    if (idx < 0) {
+      var visited = t.day.steps.filter(function (s) { return s.kind === "visit" && s.place; });
+      mount(pageHead("Trip complete", { back: true, sub: "To " + esc(t.to.name) }) +
+        '<div class="card live-done"><span class="empty__ic">' + icon("check") + "</span><h2>Salamat sa paglalakbay!</h2><p class=\"muted\">You finished every step of your trip to " + esc(t.to.name) + ".</p></div>" +
+        (visited.length ? '<div class="card"><h3 class="h3">' + icon("star") + " Rate the places you visited</h3><div class=\"rows\">" + visited.map(function (s) {
+          return '<div class="prow prow--plain">' + photo(s.place, "prow__ph") + '<div class="prow__body"><h3>' + esc(s.place.name) + '</h3><p class="prow__meta">' + ratingInline(s.place) + '</p></div><button class="btn btn--sm btn--ghost" type="button" data-action="review" data-id="' + esc(s.place.id) + '">Review</button></div>';
+        }).join("") + "</div></div>" : "") +
+        '<div class="result__actions"><a class="btn btn--primary" href="#/plan">' + icon("route") + 'Plan another trip</a><button class="btn btn--ghost" type="button" data-action="live-reset" data-id="' + t.id + '">Restart checklist</button></div>', { nav: "trips" });
+      return;
+    }
+
+    var cur = steps[idx], now = new Date();
+    var early = Math.round((cur.start - now) / 60000), late = Math.round((now - cur.end) / 60000);
+    var status = early > 720 ? { cls: "early", ic: "calendar", text: "Trip starts " + T.date(cur.start) + " at " + T.time(cur.start) + " (" + countdown(cur.start) + ")" }
+      : early > 5 ? { cls: "early", ic: "clock", text: "Starts at " + T.time(cur.start) + " — in " + T.dur(early) }
+      : late > 10 ? { cls: "late", ic: "info", text: "Running about " + T.dur(late) + " behind plan" }
+      : { cls: "ok", ic: "check", text: "On schedule" };
+    // when late, suggest skipping the lowest-rated remaining stop to still leave on time
+    var skipTip = "";
+    if (late > 20) {
+      var rest = steps.slice(idx + 1).filter(function (s) { return s.type === "visit" && s.place && !t.done[s.key]; })
+        .sort(function (a, b) { return (T.places.score(a.place) || 0) - (T.places.score(b.place) || 0); })[0];
+      if (rest) skipTip = '<div class="live-skip">' + icon("info") + "<p>To still leave on time" + (t.back ? " at " + T.time(new Date(t.back.depart)) : "") + ", consider skipping <b>" + esc(rest.title) + "</b>.</p>" +
+        '<button class="btn btn--sm btn--ghost" type="button" data-action="live-skip" data-key="' + rest.key + '">Skip it</button></div>';
+    }
+    var tgt = cur.target;
+    var gmaps = tgt ? "https://www.google.com/maps/dir/?api=1&destination=" + tgt.lat + "," + tgt.lng + "&travelmode=" + (cur.mode === "walk" ? "walking" : cur.mode === "grab" || cur.mode === "car" ? "driving" : "transit") : "";
+    var doneLabel = cur.type === "leg" ? (cur.ride ? "I got off — next step" : "I'm here — next step") : cur.type === "free" ? "Done — head home" : "Done here — next";
+    var next = steps.slice(idx + 1, idx + 5);
+    var html = pageHead("Live trip", { back: true, sub: "To " + esc(t.to.name) + " · step " + (idx + 1) + " of " + steps.length,
+      actions: '<button class="icon-btn" type="button" data-action="live-wake" aria-label="Keep screen on" title="Keep screen on">' + icon("sun") + "</button>" }) +
+      '<div class="live-progress"><span style="width:' + pct + '%"></span></div>' +
+      '<div class="live-status live-status--' + status.cls + '">' + icon(status.ic) + "<span>" + esc(status.text) + "</span></div>" + skipTip +
+      '<div class="card live-card">' +
+      '<div class="live-card__mode"><span class="tl__ic">' + icon(liveIcon(cur)) + "</span><span>" + esc(cur.type === "leg" ? (cur.line || T.planner.modeName[cur.mode]) : cur.type === "meal" ? "Lunch" : cur.type === "free" ? "Free time" : "Visit") + "</span>" +
+      '<span class="grow"></span><span class="live-card__time">' + T.time(cur.start) + " – " + T.time(cur.end) + "</span></div>" +
+      "<h2>" + esc(cur.title) + "</h2>" +
+      (cur.board ? '<p class="tl__board">' + icon("pin") + esc(cur.board) + "</p>" : "") +
+      (cur.ride && tgt ? '<p class="live-getoff">' + icon("bell") + "<span>Get off at <b>" + esc(tgt.name) + "</b> — we'll alert you when it's near.</span></p>" : "") +
+      (cur.tip ? '<p class="tl__tip">' + esc(cur.tip) + "</p>" : "") +
+      (cur.fare ? '<p class="live-fare">' + icon("wallet") + "<span>Fare: <b>" + T.peso(cur.fare) + "</b></span></p>" : "") +
+      '<p class="live-dist" id="live-dist">' + (tgt ? icon("locate") + "Finding your location…" : "") + "</p>" +
+      '<div class="live-actions"><button class="btn btn--primary btn--lg" type="button" data-action="live-done" data-key="' + cur.key + '">' + icon("check") + esc(doneLabel) + "</button>" +
+      (gmaps ? '<a class="btn btn--ghost" target="_blank" rel="noopener" href="' + gmaps + '">' + icon("map") + "Directions</a>" : "") + "</div></div>" +
+      (tgt ? '<div class="mini-map mini-map--tall card" id="live-map"></div>' : "") +
+      (next.length ? '<div class="card"><h3 class="h3">' + icon("list") + ' Up next</h3><ol class="live-next">' + next.map(function (s) {
+        return "<li><span class=\"tl__time\">" + T.time(s.start) + '</span><span class="tl__ic">' + icon(liveIcon(s)) + "</span><span>" + esc(s.title) + "</span></li>";
+      }).join("") + "</ol></div>" : "") +
+      '<p class="fine center">Keep Tara open during your trip. Location is used only on your phone to know when you are near each stop.</p>';
+    mount(html, { nav: "trips" });
+    live.tripId = t.id;
+
+    if (!tgt) return;
+    var m = T.maps.make($("#live-map"), tgt, 15);
+    live.map = m;
+    if (m) L.marker([tgt.lat, tgt.lng], { icon: T.maps.pin(cur.place || { cat: cur.type === "meal" ? "food" : "other" }) }).addTo(m).bindPopup(esc(tgt.name));
+    if (!navigator.geolocation) { $("#live-dist").textContent = "Location isn't available — follow the times shown."; return; }
+    live.watch = navigator.geolocation.watchPosition(function (pos) {
+      var me = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      var d = T.geo.distance(me, tgt);
+      var el = $("#live-dist");
+      if (el) el.innerHTML = icon("locate") + "<span><b>" + T.km(d) + "</b> to " + esc(tgt.name) + "</span>";
+      if (live.map) {
+        if (!live.me) { live.me = L.marker([me.lat, me.lng], { icon: T.maps.me() }).addTo(live.map); live.map.fitBounds([[me.lat, me.lng], [tgt.lat, tgt.lng]], { padding: [40, 40], maxZoom: 16 }); }
+        else live.me.setLatLng([me.lat, me.lng]);
+      }
+      var key = cur.key;
+      if (cur.ride && d < 0.4 && !live.alerted[key]) {
+        live.alerted[key] = true;
+        liveAlert("Get ready to get off!", tgt.name + " is about " + T.km(d) + " away.", t.id);
+      } else if (cur.type === "leg" && !cur.ride && d < 0.06 && !live.alerted[key]) {
+        live.alerted[key] = true;
+        markLive(t.id, key, false);
+        T.toast("You've arrived", tgt.name, "check");
+      } else if ((cur.type === "visit" || cur.type === "meal") && d < 0.08 && !live.alerted[key]) {
+        live.alerted[key] = true;
+        T.toast("You're at " + tgt.name, "Enjoy! Tap “Done here” when you're ready to move on.", "pin");
+      }
+    }, function () {
+      var el = $("#live-dist");
+      if (el) el.textContent = "Location is off — follow the times shown, and tap the button after each step.";
+    }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 });
+  };
+  function markLive(tripId, key, skipped) {
+    var t = T.trips.get(tripId);
+    if (!t) return;
+    t.done = t.done || {};
+    t.done[key] = true;
+    if (skipped) { t.skipped = t.skipped || {}; t.skipped[key] = true; }
+    T.trips.update(t);
+    T.router.resolve();
+  }
+  T.actions["live-done"] = function (el) { markLive(T.router.parse().param, el.dataset.key, false); };
+  T.actions["live-skip"] = function (el) { markLive(T.router.parse().param, el.dataset.key, true); T.toast("Skipped", "Your plan is back on track.", "check"); };
+  T.actions["live-reset"] = function (el) {
+    var t = T.trips.get(el.dataset.id);
+    t.done = {}; t.skipped = {};
+    T.trips.update(t);
+    T.router.resolve();
+  };
+  T.actions["live-wake"] = function () {
+    if (!navigator.wakeLock) { T.toast("Not supported", "Your browser can't keep the screen on. Adjust screen timeout in phone settings.", "info", "warn"); return; }
+    navigator.wakeLock.request("screen").then(function (l) { live.wake = l; T.toast("Screen will stay on", "Until you leave this page.", "sun"); })
+      .catch(function () { T.toast("Couldn't keep the screen on", "Try again after tapping the screen.", "info", "warn"); });
   };
 
   T.views.notfound = function () { mount(pageHead("Not found", { back: true }) + empty("compass", "Wrong turn", "This page doesn't exist.", '<a class="btn btn--primary" href="#/home">Go home</a>')); };
