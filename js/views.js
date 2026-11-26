@@ -1563,6 +1563,7 @@
       '<div class="mini-map mini-map--tall card" id="trip-map"></div>' +
       itinerary(t, { check: true }) +
       pasalubongCard(t) +
+      expensesCard(t) +
       '<div class="card"><h3 class="h3">' + icon("bell") + " Reminders</h3>" + reminderList(t) + "</div>" +
       '<div class="card"><h3 class="h3">' + icon("wallet") + " Budget</h3>" + budgetCard(t) + "</div>";
     mount(html, { nav: "trips" });
@@ -1586,6 +1587,120 @@
   function switchRow2(action, title, sub, on, id) {
     return '<label class="switch"><span><strong>' + icon("bell") + " " + title + "</strong><small>" + sub + '</small></span><input type="checkbox" data-input="' + action + '" data-id="' + id + '"' + (on ? " checked" : "") + '><span class="switch__ui"></span></label>';
   }
+  /* ---------- Group expense splitter (per saved trip) ---------- */
+  function expData(t) {
+    if (!t.expenses) {
+      var u = T.auth.current();
+      var people = [(u && u.name ? u.name.split(" ")[0] : "Me")];
+      for (var i = 2; i <= (t.pax || 1); i++) people.push("Friend " + i);
+      t.expenses = { people: people, items: [] };
+    }
+    return t.expenses;
+  }
+  // balances: + means the person should receive, - means they owe
+  function expBalances(x) {
+    var bal = x.people.map(function () { return 0; });
+    x.items.forEach(function (it) {
+      var among = it.among && it.among.length ? it.among : x.people.map(function (_, i) { return i; });
+      var share = it.amount / among.length;
+      bal[it.by] += it.amount;
+      among.forEach(function (i) { bal[i] -= share; });
+    });
+    return bal.map(function (b) { return Math.round(b * 100) / 100; });
+  }
+  // fewest payments to settle up (greedy: biggest debtor pays biggest creditor)
+  function expSettle(x) {
+    var bal = expBalances(x).map(function (b, i) { return { i: i, b: b }; });
+    var out = [], guard = 0;
+    while (guard++ < 50) {
+      bal.sort(function (a, b) { return a.b - b.b; });
+      var debtor = bal[0], creditor = bal[bal.length - 1];
+      if (!debtor || debtor.b > -0.5 || creditor.b < 0.5) break;
+      var amt = Math.min(-debtor.b, creditor.b);
+      out.push({ from: debtor.i, to: creditor.i, amount: Math.round(amt) });
+      debtor.b += amt; creditor.b -= amt;
+    }
+    return out;
+  }
+  function expensesCard(t) {
+    var x = expData(t);
+    var total = x.items.reduce(function (s2, it) { return s2 + it.amount; }, 0);
+    var bal = expBalances(x), settle = expSettle(x);
+    var opt = function (sel) { return x.people.map(function (n, i) { return '<option value="' + i + '"' + (i === sel ? " selected" : "") + ">" + esc(n) + "</option>"; }).join(""); };
+    return '<div class="card exp"><div class="sec-head"><h3>' + icon("wallet") + ' Group expenses</h3><span class="muted">' + T.peso(total) + " total</span></div>" +
+      '<div class="exp__people">' + x.people.map(function (n, i) {
+        return '<span class="exp__person"><b>' + esc(n) + "</b><small class=\"" + (bal[i] >= 0 ? "ok" : "bad") + "\">" + (bal[i] >= 0 ? "gets " : "owes ") + T.peso(Math.abs(bal[i])) + "</small>" +
+          (x.people.length > 1 && !x.items.some(function (it) { return it.by === i || (it.among || []).indexOf(i) > -1; }) ? '<button class="icon-btn" type="button" data-action="exp-rm-person" data-i="' + i + '" aria-label="Remove ' + esc(n) + '">' + icon("close") + "</button>" : "") + "</span>";
+      }).join("") +
+      '<form class="exp__addp" data-submit="exp-person" data-id="' + t.id + '"><input class="input" name="name" placeholder="Add person" required><button class="btn btn--ghost btn--sm" type="submit">' + icon("plus") + "</button></form></div>" +
+      (x.items.length ? '<ul class="exp__list">' + x.items.map(function (it, k) {
+        var among = it.among && it.among.length ? it.among : x.people.map(function (_, i) { return i; });
+        return "<li><span><b>" + esc(it.desc) + "</b><small>" + esc(x.people[it.by] || "?") + " paid · split " + (among.length === x.people.length ? "by everyone" : "by " + among.map(function (i) { return x.people[i]; }).join(", ")) + "</small></span>" +
+          "<b>" + T.peso(it.amount) + '</b><button class="icon-btn" type="button" data-action="exp-del" data-k="' + k + '" aria-label="Delete expense">' + icon("trash") + "</button></li>";
+      }).join("") + "</ul>" : '<p class="muted">Log fares, food, entrance fees and stays as you go — Tara works out who owes whom.</p>') +
+      '<form class="exp__add" data-submit="exp-add" data-id="' + t.id + '">' +
+      '<input class="input" name="desc" placeholder="What for? e.g. Bus fare" required>' +
+      '<input class="input" name="amount" type="number" inputmode="decimal" min="1" step="0.01" placeholder="₱ Amount" required>' +
+      '<label class="field"><span class="field__label">Paid by</span><select class="input" name="by">' + opt(0) + "</select></label>" +
+      '<div class="field"><span class="field__label">Split among</span><div class="exp__among">' + x.people.map(function (n, i) {
+        return '<label><input type="checkbox" name="among" value="' + i + '" checked><span>' + esc(n) + "</span></label>";
+      }).join("") + "</div></div>" +
+      '<button class="btn btn--primary btn--sm" type="submit">' + icon("plus") + "Add expense</button></form>" +
+      (settle.length ? '<div class="exp__settle"><p class="label">Settle up</p><ul>' + settle.map(function (s3) {
+        return "<li>" + icon("arrow") + "<span><b>" + esc(x.people[s3.from]) + "</b> pays <b>" + esc(x.people[s3.to]) + "</b> " + T.peso(s3.amount) + "</span></li>";
+      }).join("") + "</ul></div>" : (x.items.length ? '<p class="exp__even">' + icon("check") + "Everyone is even.</p>" : "")) +
+      (x.items.length ? '<button class="btn btn--ghost btn--sm" type="button" data-action="exp-share" data-id="' + t.id + '">' + icon("share") + "Share summary</button>" : "") + "</div>";
+  }
+  function expTrip(id) { var t = T.trips.get(id || T.router.parse().param); expData(t); return t; }
+  T.submits["exp-person"] = function (form) {
+    var name = form.name.value.trim();
+    if (!name) return;
+    var t = expTrip(form.dataset.id);
+    t.expenses.people.push(name);
+    T.trips.update(t);
+    T.router.resolve();
+  };
+  T.actions["exp-rm-person"] = function (el) {
+    var t = expTrip(), i = Number(el.dataset.i);
+    t.expenses.people.splice(i, 1);
+    t.expenses.items.forEach(function (it) {
+      if (it.by > i) it.by--;
+      if (it.among) it.among = it.among.filter(function (j) { return j !== i; }).map(function (j) { return j > i ? j - 1 : j; });
+    });
+    T.trips.update(t);
+    T.router.resolve();
+  };
+  T.submits["exp-add"] = function (form) {
+    var amount = Number(form.amount.value), desc = form.desc.value.trim();
+    if (!desc || !(amount > 0)) return;
+    var among = Array.prototype.slice.call(form.querySelectorAll('[name="among"]:checked')).map(function (c) { return Number(c.value); });
+    if (!among.length) { T.toast("Pick who shares it", "Tick at least one person.", "info", "warn"); return; }
+    var t = expTrip(form.dataset.id);
+    t.expenses.items.push({ desc: desc, amount: Math.round(amount * 100) / 100, by: Number(form.by.value), among: among.length === t.expenses.people.length ? [] : among, at: Date.now() });
+    T.trips.update(t);
+    T.router.resolve();
+    T.toast("Expense added", desc + " · " + T.peso(amount), "wallet");
+  };
+  T.actions["exp-del"] = function (el) {
+    var t = expTrip();
+    t.expenses.items.splice(Number(el.dataset.k), 1);
+    T.trips.update(t);
+    T.router.resolve();
+  };
+  T.actions["exp-share"] = function (el) {
+    var t = expTrip(el.dataset.id), x = t.expenses;
+    var total = x.items.reduce(function (s2, it) { return s2 + it.amount; }, 0), bal = expBalances(x), settle = expSettle(x);
+    var L = ["Group expenses — " + (t.name || t.to.name), "Total: " + T.peso(total), ""];
+    x.items.forEach(function (it) { L.push("• " + it.desc + ": " + T.peso(it.amount) + " (paid by " + x.people[it.by] + ")"); });
+    L.push("");
+    x.people.forEach(function (n, i) { L.push(n + (bal[i] >= 0 ? " gets back " : " owes ") + T.peso(Math.abs(bal[i]))); });
+    if (settle.length) { L.push("", "Settle up:"); settle.forEach(function (s3) { L.push("→ " + x.people[s3.from] + " pays " + x.people[s3.to] + " " + T.peso(s3.amount)); }); }
+    var text = L.join("\n");
+    if (navigator.share) navigator.share({ title: "Group expenses", text: text }).catch(function () {});
+    else if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { T.toast("Summary copied", "Paste it in your group chat.", "check"); });
+  };
+  T.expSettle = expSettle; T.expBalances = expBalances;
+
   /* ---------- Pasalubong checklist (per saved trip) ---------- */
   function tripCities(t) {
     var out = [];
