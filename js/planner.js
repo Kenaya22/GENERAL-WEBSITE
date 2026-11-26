@@ -128,7 +128,9 @@
   function busLeg(a, b, sign, how, goes) {
     var km = dist(a, b) * 1.2;
     var fare = Math.round(F.bus.base + Math.max(0, km - F.bus.baseKm) * F.bus.perKm);
-    return { mode: "bus", from: pt(a), to: pt(b), km: km, ride: km / F.bus.speed * 60, wait: F.bus.wait, fareReg: fare, discount: "road", road: true,
+    // long trips use expressways (SLEX, NLEX, TPLEX), so the average speed is higher
+    var speed = km > 120 ? 50 : km > 60 ? 42 : km > 30 ? 35 : F.bus.speed;
+    return { mode: "bus", from: pt(a), to: pt(b), km: km, ride: km / speed * 60, wait: F.bus.wait, fareReg: fare, discount: "road", road: true,
       sign: sign, text: "Ride a bus going to " + (goes || b.name) + " — signboard says “" + sign + "”", board: how || "",
       tip: "Conductors collect fares on board — tell them where you're getting off." };
   }
@@ -262,7 +264,7 @@
   function viaTerminal(from, to) {
     var near = function (p) { return TR.provincialStops.slice().sort(function (a, b) { return dist(p, a) - dist(p, b); })[0]; };
     var sa = near(from), sb = near(to);
-    if (!sa || !sb || sa === sb || dist(from, sa) > 12 || dist(to, sb) > 12) return null;
+    if (!sa || !sb || sa === sb || dist(from, sa) > 18 || dist(to, sb) > 18) return null;
     var shared = TR.metroTerminals.filter(function (t) { return (sa.terminals || []).indexOf(t.id) > -1 && (sb.terminals || []).indexOf(t.id) > -1; });
     if (!shared.length) return null;
     var term = shared.sort(function (a, b) { return dist(sa, a) + dist(a, sb) - dist(sa, b) - dist(b, sb); })[0];
