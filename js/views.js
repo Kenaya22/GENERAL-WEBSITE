@@ -594,7 +594,12 @@
       '<div class="explore-tools"><span class="muted" id="ex-count"></span>' +
       '<label class="select-sm">' + icon("list") + '<select data-input="explore-sort"><option value="near"' + (st.sort === "near" ? " selected" : "") + '>Nearest</option><option value="rating"' + (st.sort === "rating" ? " selected" : "") + ">Top rated</option></select></label>" +
       '<div class="toggle2"><button type="button" data-action="explore-mode" data-mode="list" aria-pressed="' + (st.mode === "list") + '">' + icon("list") + "List</button>" +
-      '<button type="button" data-action="explore-mode" data-mode="map" aria-pressed="' + (st.mode === "map") + '">' + icon("map") + "Map</button></div></div></div>" +
+      '<button type="button" data-action="explore-mode" data-mode="map" aria-pressed="' + (st.mode === "map") + '">' + icon("map") + "Map</button></div></div>" +
+      '<div class="explore-filters">' +
+      '<button class="chip chip--sm" type="button" data-action="explore-open" aria-pressed="' + !!st.openNow + '">' + icon("clock") + "Open now</button>" +
+      [["", "Any price"], ["0", "Free"], ["1", "₱ Budget"], ["2", "₱₱ Mid"], ["3", "₱₱₱ Splurge"]].map(function (o) {
+        return '<button class="chip chip--sm" type="button" data-action="explore-price" data-price="' + o[0] + '" aria-pressed="' + ((st.price || "") === o[0]) + '">' + esc(o[1]) + "</button>";
+      }).join("") + "</div></div>" +
       '<div id="ex-results"></div><div id="ex-map" class="ex-map" hidden></div><div id="ex-live"></div>';
     mount(html, { nav: "explore" });
     if (r.query.focus) setTimeout(function () { var i = $("#ex-q"); if (i) i.focus(); }, 50);
@@ -628,8 +633,30 @@
     var sc = scope === undefined ? st.scope : scope;
     var extra = isHereScope(st.scope) || scope === null ? T.state.nearby : [];
     if (sc && sc.type === "city" && T.state.cityLive[sc.id]) extra = extra.concat(T.state.cityLive[sc.id].filter(function (p) { return extra.indexOf(p) < 0; }));
-    return T.places.query({ cat: st.cat || null, q: st.q, near: here, sort: st.sort, scope: sc, extra: extra });
+    var list = T.places.query({ cat: st.cat || null, q: st.q, near: here, sort: st.sort, scope: sc, extra: extra });
+    if (st.openNow) list = list.filter(function (x) { return T.places.openState(x.p).open === true; });
+    if (st.price) list = list.filter(function (x) { return priceLevel(x.p) === Number(st.price); });
+    return list;
   }
+  /* 0 = free, 1 = budget, 2 = mid-range, 3 = splurge (food price, entrance fee or room rate) */
+  function priceLevel(p) {
+    if (p.price) return p.price;
+    if (p.room) return p.room <= 2500 ? 1 : p.room <= 5000 ? 2 : 3;
+    var f = T.places.fee(p).amount;
+    if (f == null) return null;
+    return f === 0 ? 0 : f <= 150 ? 1 : f <= 600 ? 2 : 3;
+  }
+  T.priceLevel = priceLevel;
+  T.actions["explore-open"] = function (el) {
+    var st = T.state.explore; st.openNow = !st.openNow;
+    el.setAttribute("aria-pressed", String(st.openNow));
+    renderExplore();
+  };
+  T.actions["explore-price"] = function (el) {
+    var st = T.state.explore; st.price = el.dataset.price;
+    $$('[data-action="explore-price"]').forEach(function (b) { b.setAttribute("aria-pressed", String(b === el)); });
+    renderExplore();
+  };
   function renderExplore() {
     var st = T.state.explore, here = T.location.get();
     var list = exploreList();
@@ -1535,6 +1562,7 @@
       (t.stops.length > 1 ? "&waypoints=" + t.stops.slice(0, -1).map(function (s) { return s.lat + "," + s.lng; }).join("%7C") : "") + '&travelmode=transit">' + icon("map") + "Google Maps</a></div></div>" +
       '<div class="mini-map mini-map--tall card" id="trip-map"></div>' +
       itinerary(t, { check: true }) +
+      pasalubongCard(t) +
       '<div class="card"><h3 class="h3">' + icon("bell") + " Reminders</h3>" + reminderList(t) + "</div>" +
       '<div class="card"><h3 class="h3">' + icon("wallet") + " Budget</h3>" + budgetCard(t) + "</div>";
     mount(html, { nav: "trips" });
@@ -1558,6 +1586,71 @@
   function switchRow2(action, title, sub, on, id) {
     return '<label class="switch"><span><strong>' + icon("bell") + " " + title + "</strong><small>" + sub + '</small></span><input type="checkbox" data-input="' + action + '" data-id="' + id + '"' + (on ? " checked" : "") + '><span class="switch__ui"></span></label>';
   }
+  /* ---------- Pasalubong checklist (per saved trip) ---------- */
+  function tripCities(t) {
+    var out = [];
+    var add = function (c) { if (c && out.indexOf(c) < 0) out.push(c); };
+    t.stops.forEach(function (s) { add(T.dest.city(s.cityId) || T.dest.cityOf(s)); });
+    (t.days || []).forEach(function (d) { d.steps.forEach(function (st) { if (st.place) add(T.dest.city(st.place.city)); }); });
+    return out;
+  }
+  function pasalubongSuggest(t) {
+    var items = [], seen = {};
+    tripCities(t).forEach(function (c) {
+      (C.pasalubong[c.id] || []).forEach(function (n) {
+        if (seen[n]) return;
+        seen[n] = 1;
+        items.push({ name: n, where: c.name, done: false });
+      });
+    });
+    return items;
+  }
+  function pasalubongCard(t) {
+    if (!t.pasalubong) { t.pasalubong = pasalubongSuggest(t); T.trips.update(t); }
+    var L = t.pasalubong, got = L.filter(function (x) { return x.done; }).length;
+    return '<div class="card pasa"><div class="sec-head"><h3>' + icon("basket") + ' Pasalubong checklist</h3><span class="muted">' + got + " / " + L.length + "</span></div>" +
+      (L.length ? "" : '<p class="muted">No local specialties listed for these towns yet — add your own below.</p>') +
+      '<ul class="pasa__list">' + L.map(function (x, i) {
+        return '<li class="' + (x.done ? "is-done" : "") + '"><label><input type="checkbox" data-input="pasa-check" data-i="' + i + '"' + (x.done ? " checked" : "") + ">" +
+          "<span><b>" + esc(x.name) + "</b>" + (x.where || x.for ? "<small>" + esc([x.where ? "from " + x.where : "", x.for ? "for " + x.for : ""].filter(Boolean).join(" · ")) + "</small>" : "") + "</span></label>" +
+          '<button class="icon-btn" type="button" data-action="pasa-del" data-i="' + i + '" aria-label="Remove ' + esc(x.name) + '">' + icon("close") + "</button></li>";
+      }).join("") + "</ul>" +
+      '<form class="pasa__add" data-submit="pasa-add" data-id="' + t.id + '"><input class="input" name="item" placeholder="Add item, e.g. Buko pie" required>' +
+      '<input class="input" name="for" placeholder="For (optional)"><button class="btn btn--primary btn--sm" type="submit">' + icon("plus") + "Add</button></form>" +
+      (L.length ? '<button class="btn btn--ghost btn--sm" type="button" data-action="pasa-share" data-id="' + t.id + '">' + icon("share") + "Share list</button>" : "") + "</div>";
+  }
+  function pasaTrip() { return T.trips.get(T.router.parse().param); }
+  T.inputs["pasa-check"] = function (el) {
+    var t = pasaTrip(), x = t.pasalubong[Number(el.dataset.i)];
+    x.done = el.checked;
+    T.trips.update(t);
+    el.closest("li").classList.toggle("is-done", el.checked);
+    var c = el.closest(".pasa").querySelector(".sec-head .muted");
+    if (c) c.textContent = t.pasalubong.filter(function (y) { return y.done; }).length + " / " + t.pasalubong.length;
+  };
+  T.actions["pasa-del"] = function (el) {
+    var t = pasaTrip();
+    t.pasalubong.splice(Number(el.dataset.i), 1);
+    T.trips.update(t);
+    T.router.resolve();
+  };
+  T.submits["pasa-add"] = function (form) {
+    var name = form.item.value.trim();
+    if (!name) return;
+    var t = T.trips.get(form.dataset.id);
+    t.pasalubong = t.pasalubong || [];
+    t.pasalubong.push({ name: name, for: form.for.value.trim(), done: false });
+    T.trips.update(t);
+    T.router.resolve();
+  };
+  T.actions["pasa-share"] = function (el) {
+    var t = T.trips.get(el.dataset.id);
+    var text = "Pasalubong list — " + (t.name || t.to.name) + "\n" + t.pasalubong.map(function (x) {
+      return (x.done ? "✅ " : "⬜ ") + x.name + (x.for ? " (for " + x.for + ")" : "");
+    }).join("\n");
+    if (navigator.share) navigator.share({ title: "Pasalubong list", text: text }).catch(function () {});
+    else if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { T.toast("List copied", "Paste it in Messenger or Viber.", "check"); });
+  };
   T.inputs["trip-check"] = function (el) {
     var t = T.trips.get(T.router.parse().param);
     t.done = t.done || {};

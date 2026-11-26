@@ -1001,3 +1001,20 @@ svg.studio-mark--sm { width: 38px; height: 38px; filter: none; flex: none; }
 .fare-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .fare-list li span { flex: 1; display: grid; min-width: 0; font-size: var(--fs-sm); }
 .fare-list small { color: var(--text-3); }
+
+/* Explore filters + pasalubong checklist */
+.explore-filters { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 calc(var(--gutter) * -1); padding: 2px var(--gutter); }
+.explore-filters::-webkit-scrollbar { display: none; }
+.chip--sm { height: 32px; padding: 0 12px; font-size: 12.5px; }
+.chip--sm .i { width: 14px; height: 14px; }
+.pasa__list { display: grid; gap: 2px; margin: var(--s-2) 0 var(--s-3); }
+.pasa__list li { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); }
+.pasa__list label { flex: 1; display: flex; align-items: center; gap: 12px; padding: 10px 0; cursor: pointer; min-width: 0; }
+.pasa__list input { width: 22px; height: 22px; accent-color: var(--success); flex: none; }
+.pasa__list label span { display: grid; min-width: 0; }
+.pasa__list small { color: var(--text-3); font-size: 12px; }
+.pasa__list li.is-done b { text-decoration: line-through; color: var(--text-3); }
+.pasa__list .icon-btn { width: 34px; height: 34px; color: var(--text-3); }
+.pasa__add { display: grid; grid-template-columns: 1fr 0.8fr auto; gap: 6px; margin-bottom: var(--s-3); }
+.pasa__add .input { min-height: 42px; padding: 8px 12px; }
+@media (max-width: 420px) { .pasa__add { grid-template-columns: 1fr 1fr; } .pasa__add .btn { grid-column: 1 / -1; } }
