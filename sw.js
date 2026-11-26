@@ -1,6 +1,6 @@
 /* Tara service worker — offline app shell, cached photos/tiles, notification clicks.
    Bump VERSION when you publish changes. */
-const VERSION = "tara-v7";
+const VERSION = "tara-v8";
 const RUNTIME = "tara-runtime-v1";
 const CORE = [
   "./", "./index.html", "./offline.html", "./manifest.webmanifest",
@@ -12,7 +12,8 @@ const CORE = [
 const RUNTIME_MAX = 250;
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
+  // cache: "reload" skips the browser cache so a new version never stores old files
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(CORE.map((u) => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== RUNTIME).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
@@ -37,11 +38,12 @@ self.addEventListener("fetch", (e) => {
   }
 
   if (url.origin === self.location.origin) {
-    // app files: cache first, refresh in background
-    e.respondWith(caches.open(VERSION).then((c) => c.match(req, { ignoreSearch: true }).then((hit) => {
-      const net = fetch(req).then((res) => { if (res.ok) c.put(req, res.clone()); return res; }).catch(() => hit);
-      return hit || net;
-    })));
+    // app files: newest version from the network when online (fast fallback to the saved copy offline)
+    e.respondWith(caches.open(VERSION).then((c) => {
+      const net = fetch(new Request(req, { cache: "no-cache" })).then((res) => { if (res.ok) c.put(req, res.clone()); return res; });
+      const slow = new Promise((ok) => setTimeout(ok, 3500)).then(() => c.match(req, { ignoreSearch: true }));
+      return Promise.race([net, slow.then((hit) => hit || net)]).catch(() => c.match(req, { ignoreSearch: true }));
+    }));
     return;
   }
 

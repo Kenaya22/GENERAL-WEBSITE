@@ -218,7 +218,15 @@
 
   if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
     window.addEventListener("load", function () {
-      navigator.serviceWorker.register("sw.js").then(function (reg) {
+      // when a new version takes over, reload once so you see it right away
+      var hadController = !!navigator.serviceWorker.controller, reloaded = false;
+      navigator.serviceWorker.addEventListener("controllerchange", function () {
+        if (!hadController || reloaded) return;
+        reloaded = true;
+        location.reload();
+      });
+      navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(function (reg) {
+        reg.update().catch(function () {});
         reg.addEventListener("updatefound", function () {
           var nw = reg.installing;
           if (nw) nw.addEventListener("statechange", function () {
