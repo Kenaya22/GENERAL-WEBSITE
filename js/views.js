@@ -1550,6 +1550,7 @@
     var last = t.stops[t.stops.length - 1];
     var html = pageHead(esc(t.name), { back: true, sub: esc(dateRange(t)) + " · " + esc(status),
       actions: '<button class="icon-btn" type="button" data-action="trip-delete" data-id="' + t.id + '" aria-label="Delete trip">' + icon("trash") + "</button>" }) +
+      '<div id="trip-alerts"></div>' +
       '<div class="trip-top card">' +
       '<div class="trip-top__row"><div><small>' + icon("home") + "Leave home</small><b>" + T.time(dep) + "</b></div>" + icon("arrow") +
       "<div><small>" + icon("pin") + "Arrive at " + esc(t.stops[0].name) + "</small><b>" + T.time(new Date(t.option.arrive)) + "</b></div>" +
@@ -1567,6 +1568,7 @@
       '<div class="card"><h3 class="h3">' + icon("bell") + " Reminders</h3>" + reminderList(t) + "</div>" +
       '<div class="card"><h3 class="h3">' + icon("wallet") + " Budget</h3>" + budgetCard(t) + "</div>";
     mount(html, { nav: "trips" });
+    tripAlerts(t, $("#trip-alerts"));
     var m = T.maps.make($("#trip-map"), t.stops[0], 12);
     if (m) {
       var pts = [[t.from.lat, t.from.lng]];
@@ -1587,6 +1589,46 @@
   function switchRow2(action, title, sub, on, id) {
     return '<label class="switch"><span><strong>' + icon("bell") + " " + title + "</strong><small>" + sub + '</small></span><input type="checkbox" data-input="' + action + '" data-id="' + id + '"' + (on ? " checked" : "") + '><span class="switch__ui"></span></label>';
   }
+  /* ---------- Trip-day alerts: weather warnings + official advisories ---------- */
+  function tripAlerts(t, box, compact) {
+    if (!box) return;
+    var first = new Date(t.option.depart), now = new Date();
+    var endDate = new Date(t.endsAt || (t.back ? t.back.arrive : t.option.arrive));
+    if (endDate < now) return; // trip is over
+    var daysAway = Math.floor((first - now) / 864e5);
+    var links = '<div class="alerts__links">' +
+      '<a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="https://www.pagasa.dost.gov.ph/">' + icon("storm") + "PAGASA typhoon & rain advisories</a>" +
+      '<a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="https://www.google.com/maps/@14.45,121.05,10z/data=!5m1!1e1">' + icon("map") + "Live traffic</a></div>" +
+      '<p class="fine">Class and work suspensions are announced by your city/municipality, DepEd and the provincial government — check their official pages on the morning of your trip.</p>';
+    var render = function (items, note) {
+      box.innerHTML = '<div class="card alerts' + (items.some(function (a) { return a.level === "bad"; }) ? " alerts--bad" : items.some(function (a) { return a.level === "warn"; }) ? " alerts--warn" : "") + '">' +
+        '<div class="sec-head"><h3>' + icon("bell") + " Trip-day check</h3>" + (note ? '<span class="muted">' + esc(note) + "</span>" : "") + "</div>" +
+        (items.length ? '<ul class="alerts__list">' + items.map(function (a) {
+          return '<li class="alerts__item alerts__item--' + a.level + '">' + icon(a.icon) + "<span><b>" + esc(a.title) + "</b>" + (a.text ? "<small>" + esc(a.text) + "</small>" : "") + "</span></li>";
+        }).join("") + "</ul>" : "") + (compact && !items.some(function (a) { return a.level !== "ok"; }) ? "" : links) + "</div>";
+    };
+    if (daysAway > 15) { render([{ level: "ok", icon: "calendar", title: "Weather forecast opens 2 weeks before your trip", text: "Check back closer to the date." }]); return; }
+    render([], "Checking the forecast…");
+    var loc = t.stops && t.stops[0] ? t.stops[0] : t.to;
+    T.weather.get(loc).then(function (w) {
+      if (!document.body.contains(box)) return;
+      if (!w) { render([{ level: "ok", icon: "info", title: "Forecast unavailable offline", text: "Connect to the internet to check trip-day weather." }]); return; }
+      var items = [], nDays = Array.isArray(t.days) ? t.days.length : (t.days || 1);
+      for (var k = 0; k < nDays; k++) {
+        var d = T.addMin(first, k * 1440), f = T.weather.forDate(w, d);
+        if (!f) continue;
+        var label = nDays > 1 ? "Day " + (k + 1) + " (" + T.date(d) + "): " : T.date(d) + ": ";
+        if (f.code >= 95) items.push({ level: "bad", icon: "storm", title: label + "thunderstorms expected", text: "Avoid beaches, boats and mountain trails; keep the PAGASA page handy." });
+        else if (f.rain >= 70) items.push({ level: "warn", icon: "rain", title: label + "heavy rain likely (" + f.rain + "%)", text: "Bring rain gear, expect slower traffic and check for flooding on your route." });
+        else if (f.rain >= 40) items.push({ level: "info", icon: "rain", title: label + "chance of rain " + f.rain + "%", text: "Pack an umbrella." });
+        if (f.max >= 35) items.push({ level: "warn", icon: "sun", title: label + "very hot (" + Math.round(f.max) + "°C)", text: "Drink water often, use sunscreen and rest in the shade at midday." });
+        if (!items.length || items[items.length - 1].title.indexOf(label) !== 0) items.push({ level: "ok", icon: T.weather.describe(f.code).icon, title: label + T.weather.describe(f.code).label + ", " + Math.round(f.min) + "–" + Math.round(f.max) + "°C", text: "" });
+      }
+      render(items, "Forecast for " + (loc.name || "your destination"));
+    });
+  }
+  T.tripAlerts = tripAlerts;
+
   /* ---------- Group expense splitter (per saved trip) ---------- */
   function expData(t) {
     if (!t.expenses) {
@@ -1961,9 +2003,11 @@
       (next.length ? '<div class="card"><h3 class="h3">' + icon("list") + ' Up next</h3><ol class="live-next">' + next.map(function (s) {
         return "<li><span class=\"tl__time\">" + T.time(s.start) + '</span><span class="tl__ic">' + icon(liveIcon(s)) + "</span><span>" + esc(s.title) + "</span></li>";
       }).join("") + "</ol></div>" : "") +
+      '<div id="trip-alerts"></div>' +
       '<p class="fine center">Keep Tara open during your trip. Location is used only on your phone to know when you are near each stop.</p>';
     mount(html, { nav: "trips" });
     live.tripId = t.id;
+    tripAlerts(t, $("#trip-alerts"), true);
 
     if (!tgt) return;
     var m = T.maps.make($("#live-map"), tgt, 15);
