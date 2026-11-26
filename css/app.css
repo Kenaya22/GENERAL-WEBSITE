@@ -1325,3 +1325,26 @@ body.is-auth .ask-bubble, body.askpop-open .ask-bubble { display: none; }
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .check { display: flex; gap: 10px; align-items: flex-start; margin: 6px 0 10px; font-size: var(--fs-sm); color: var(--text-2); }
 .check input { width: 18px; height: 18px; margin-top: 1px; accent-color: var(--accent); flex: none; }
+
+/* ---------- This weekend ---------- */
+.wkend { margin-top: 0; }
+.wkend__head { display: grid; grid-template-columns: 44px 1fr; gap: 12px; align-items: center; }
+.wkend__ic { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(140deg, var(--sun-400), var(--sun-600)); color: #fff; }
+.wkend__head strong { display: block; font-family: var(--font-display); font-size: var(--fs-lg); }
+.wkend__head small { color: var(--text-2); font-size: var(--fs-xs); }
+.wkend__fest { list-style: none; padding: 0; margin: var(--s-4) 0 0; display: grid; gap: 6px; }
+.wkend__fest a { display: grid; grid-template-columns: 48px 1fr 16px; gap: 12px; align-items: center; padding: 8px 10px; border-radius: 14px; background: var(--bg-sunken); color: var(--text); }
+.wkend__fest a > .i { width: 16px; height: 16px; color: var(--text-3); }
+.wkend__date { display: grid; justify-items: center; padding: 4px 0; border-radius: 10px; background: var(--bg-elev); border: 1px solid var(--line); line-height: 1.1; }
+.wkend__date b { font-size: var(--fs-lg); color: var(--accent); }
+.wkend__date small { font-size: 10px; text-transform: uppercase; color: var(--text-2); font-weight: 700; }
+.wkend__fest strong { display: block; font-size: var(--fs-sm); }
+.wkend__fest span small { color: var(--text-2); font-size: var(--fs-xs); }
+.wkend .label { margin: var(--s-4) 0 var(--s-2); }
+.wkend__ideas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.wkend__idea { position: relative; border-radius: 14px; overflow: hidden; color: #fff; aspect-ratio: 3 / 4; }
+.wkend__idea .wkend__ph { position: absolute; inset: 0; }
+.wkend__idea::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,.72)); }
+.wkend__idea > span { position: absolute; z-index: 1; left: 8px; right: 8px; bottom: 8px; }
+.wkend__idea strong { display: block; font-size: 12px; line-height: 1.25; }
+.wkend__idea small { font-size: 11px; opacity: .85; }

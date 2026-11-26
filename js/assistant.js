@@ -435,7 +435,7 @@
     box.insertAdjacentHTML("beforeend", bubble({ who: "me", text: text }) + '<div class="msg msg--bot msg--typing" id="typing"><span class="msg__av" aria-hidden="true"><svg class="logo-av"><use href="#i-logo"/></svg></span><div class="msg__b"><i></i><i></i><i></i></div></div>');
     scrollDown();
     var r;
-    try { r = answer(text); } catch (err) { r = { html: plain("Oops — something went wrong while answering. Please try asking another way.") }; if (window.console) console.warn(err); }
+    try { r = T.assistant.answer(text); } catch (err) { r = { html: plain("Oops — something went wrong while answering. Please try asking another way.") }; if (window.console) console.warn(err); }
     Promise.all([Promise.resolve(r), new Promise(function (res) { setTimeout(res, T.reduceMotion ? 50 : 450 + Math.min(600, text.length * 8)); })]).then(function (v) {
       var a = v[0] || { html: plain("…") };
       var ty = $("#typing");

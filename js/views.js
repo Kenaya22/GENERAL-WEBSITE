@@ -385,6 +385,7 @@
       }).join("") + "</div></section>" +
       (trip ? '<section class="section">' + nextTripCard(trip) + "</section>" : "") +
       '<section class="section home-duo">' + askCard() + (T.engage ? T.engage.homeCard() : "") + "</section>" +
+      (T.weekendCard ? T.weekendCard() : "") +
       '<section class="section"><div class="sec-head"><h2>' + icon("fire") + ' Featured trips</h2></div>' +
       '<div class="feature" id="feature">' + C.dayTrips.map(function (id) { var p = T.places.get(id); return p ? featureSlide(p) : ""; }).join("") + "</div>" +
       '<div class="feature-dots" id="feature-dots">' + C.dayTrips.map(function (id, i) { return '<button type="button" data-action="feature-go" data-i="' + i + '" aria-label="Slide ' + (i + 1) + '"' + (i ? "" : ' aria-current="true"') + "></button>"; }).join("") + "</div></section>" +

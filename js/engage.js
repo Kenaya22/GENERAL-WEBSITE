@@ -121,13 +121,54 @@
         return '<div class="badge' + (x.earned ? " is-earned" : "") + '" title="' + esc(x.b.desc) + '"><span class="badge__ic">' + icon(x.b.icon) + "</span><strong>" + esc(x.b.name) + "</strong><small>" +
           (x.earned ? "Unlocked" : x.n + "/" + x.b.need) + "</small></div>";
       }).join("") + "</div>" +
-      '<p class="fine">Tap <b>I\'ve been here</b> on places you visit. Saved trips, reviews and questions to Ask Tara also earn points.</p></div>';
+      '<p class="fine">Tap <b>I\'ve been here</b> on places you visit. Saved trips, reviews and questions to Ask Tara also earn points.</p>' +
+      '<button class="btn btn--ghost btn--sm" type="button" data-action="share-badges">' + icon("share") + "Share my badges</button></div>";
   }
   function homeCard() {
     var sum = summary(), next = sum.badges.filter(function (x) { return !x.earned; }).sort(function (a, b) { return b.n / b.b.need - a.n / a.b.need; })[0];
     return '<a class="card home-lvl" href="#/profile">' + levelBar(sum, true) +
       (next ? '<span class="home-lvl__next">' + icon(next.b.icon) + "<span>Next badge: <b>" + esc(next.b.name) + "</b> · " + next.n + "/" + next.b.need + "</span></span>" : "") + "</a>";
   }
+
+  var EMOJI = { flag: "🚩", compass: "🧭", fire: "🔥", map: "🗺️", globe: "🌏", coffee: "☕", utensils: "🍜", castle: "🏰", tree: "🌳", waves: "🌊", route: "🛣️", bed: "🛏️", star: "⭐", chat: "💬" };
+  T.actions["share-badges"] = function () {
+    var sum = summary(), u = T.auth.current() || {};
+    var W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H;
+    var g = c.getContext("2d");
+    var bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, "#0f3537"); bg.addColorStop(1, "#1d6b6b");
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    g.textBaseline = "top"; g.fillStyle = "#ffc24b"; g.font = "700 34px Inter, system-ui, sans-serif";
+    g.fillText("MY TARA TRAVEL BADGES", 72, 80);
+    g.fillStyle = "#fbf5ea"; g.font = "700 84px Fraunces, Georgia, serif";
+    g.fillText(sum.level.cur.name, 72, 140);
+    g.font = "500 36px Inter, system-ui, sans-serif"; g.fillStyle = "rgba(251,245,234,.8)";
+    g.fillText((u.name ? u.name.split(" ")[0] + " · " : "") + "Level " + (sum.level.i + 1) + " · " + sum.points + " pts", 72, 250);
+    var stats = [[sum.s.visits.length, "check-ins"], [sum.s.cities, "towns"], [sum.s.provinces, "provinces"], [sum.s.trips, "trips"]];
+    stats.forEach(function (st, i) {
+      var x = 72 + i * 236;
+      g.fillStyle = "rgba(255,255,255,.1)"; g.fillRect(x, 330, 216, 150);
+      g.fillStyle = "#fbf5ea"; g.font = "700 64px Inter, system-ui, sans-serif"; g.fillText(String(st[0]), x + 24, 352);
+      g.font = "500 28px Inter, system-ui, sans-serif"; g.fillStyle = "rgba(251,245,234,.7)"; g.fillText(st[1], x + 24, 430);
+    });
+    var earned = sum.badges.filter(function (x) { return x.earned; });
+    g.fillStyle = "#fbf5ea"; g.font = "700 40px Inter, system-ui, sans-serif";
+    g.fillText(earned.length + " of " + BADGES.length + " badges unlocked", 72, 540);
+    (earned.length ? earned : sum.badges.slice(0, 4)).slice(0, 10).forEach(function (x, i) {
+      var col = i % 2, row = Math.floor(i / 2), bx = 72 + col * 476, by = 610 + row * 110;
+      g.globalAlpha = x.earned ? 1 : .45;
+      g.fillStyle = "rgba(255,255,255,.12)"; g.fillRect(bx, by, 456, 92);
+      g.font = "48px sans-serif"; g.fillText(EMOJI[x.b.icon] || "🏅", bx + 20, by + 18);
+      g.fillStyle = "#fbf5ea"; g.font = "600 32px Inter, system-ui, sans-serif"; g.fillText(x.b.name, bx + 96, by + 28);
+      g.globalAlpha = 1;
+    });
+    g.fillStyle = "rgba(251,245,234,.7)"; g.font = "500 30px Inter, system-ui, sans-serif";
+    g.fillText("Tara — tara, lakad tayo! Can you beat my level?", 72, H - 100);
+    c.toBlob(function (blob) {
+      var file = new File([blob], "tara-badges.jpg", { type: "image/jpeg" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) navigator.share({ files: [file], title: "My Tara badges" }).catch(function () {});
+      else { var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "tara-badges.jpg"; document.body.appendChild(a); a.click(); a.remove(); T.toast("Badge picture saved", "Post it and challenge your friends!", "flag"); }
+    }, "image/jpeg", 0.9);
+  };
 
   T.actions.visit = function (el) {
     var v = visited(), id = el.dataset.id, p = T.places.get(id);
