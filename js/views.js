@@ -799,7 +799,7 @@
       '<section class="psec"><h2>Good to know</h2><dl class="facts">' +
       "<div><dt>" + icon("clock") + "Hours</dt><dd>" + esc(T.places.hoursText(p)) + "</dd></div>" +
       (p.room ? "<div><dt>" + icon("bed") + "Room rate</dt><dd>About <b>" + T.peso(p.room) + '</b> per night <span class="muted">· ' + esc((p.kind || "Hotel") + ", " + ((C.lodging.filter(function (l) { return l.id === p.tier; })[0] || {}).label || "") + " · approx., check before booking") + "</span></dd></div>" : "") +
-      (p.room ? "" : "<div><dt>" + icon("ticket") + "Entrance</dt><dd>" + (fee.amount == null ? esc(fee.label) : fee.amount === 0 ? "Free" : T.peso(fee.amount) +
+      (p.room || p.cat === "food" || p.cat === "cafe" ? "" : "<div><dt>" + icon("ticket") + "Entrance</dt><dd>" + (fee.amount == null ? esc(fee.label) : fee.amount === 0 ? "Free" : T.peso(fee.amount) +
         (fee.discounted ? ' <span class="pill pill--ok">' + esc(trav.label) + ' rate</span> <s class="muted">' + T.peso(fee.regular) + "</s>" : (p.fee && p.fee.discounted < p.fee.regular ? ' <span class="muted">(' + T.peso(p.fee.discounted) + " student/senior/PWD)</span>" : "")) +
         (fee.note ? ' <span class="muted">· ' + esc(fee.note) + "</span>" : "")) + "</dd></div>") +
       (p.price ? "<div><dt>" + icon("wallet") + "Budget</dt><dd>" + "₱".repeat(p.price) + ' <span class="muted">· about ' + T.peso(C.mealBudget[p.price]) + " per person</span></dd></div>" : "") +

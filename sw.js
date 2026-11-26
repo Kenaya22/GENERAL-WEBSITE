@@ -1,6 +1,6 @@
 /* Tara service worker — offline app shell, cached photos/tiles, notification clicks.
    Bump VERSION when you publish changes. */
-const VERSION = "tara-v12";
+const VERSION = "tara-v13";
 const RUNTIME = "tara-runtime-v1";
 const CORE = [
   "./", "./index.html", "./offline.html", "./manifest.webmanifest",
