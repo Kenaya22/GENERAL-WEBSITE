@@ -332,15 +332,15 @@
   }
   function notEat(p) { return p.cat !== "food" && p.cat !== "cafe" && !p.hub; }
   // all things to do around a stop (city-wide for a city, walking area for a place), minus places already used
-  function poolFor(to, used, home) {
+  function poolFor(to, used, home, radius) {
     used = used || {};
     var origin = to.placeId ? T.places.get(to.placeId) : null;
     var list = to.cityId && !to.placeId
       ? T.places.query({ near: to, scope: { type: "city", id: to.cityId } }).map(function (x) { return x.p; })
-      : T.places.query({ near: to, within: 2.5 }).map(function (x) { return x.p; });
+      : T.places.query({ near: to, within: radius || 2.5 }).map(function (x) { return x.p; });
     var fresh = function (p) { return notEat(p) && !used[p.id]; };
     list = list.filter(fresh);
-    if (list.length < 4) {
+    if (list.length < 4 && !radius) {
       // small town (or already seen on earlier days): add nearby towns' sights in the same province
       var town = T.dest.city(to.cityId) || T.dest.cityOf(to);
       T.places.query({ near: to, within: 16 }).forEach(function (x) {
@@ -432,7 +432,8 @@
      ctx: { used: {id:true}, lunched: bool } — include: ordered place ids (kept in that order) */
   function activities(to, arrive, leaveAt, trav, include, ctx) {
     ctx = ctx || {};
-    var pool = poolFor(to, ctx.used, ctx.home), origin = pool.origin, r;
+    // ctx.block: the trip's other stops — they get their own time, so earlier stops don't use them up
+    var pool = poolFor(to, Object.assign({}, ctx.used, ctx.block), ctx.home, ctx.radius), origin = pool.origin, r;
     var rank = function (p) { return (p === origin ? 10 : 0) + (T.places.score(p) || 4); };
     if (include) {
       var chosen = include.map(function (id) { return T.places.get(id); }).filter(function (p) { return p && !(ctx.used && ctx.used[p.id]); });
@@ -448,6 +449,7 @@
         for (var i = 0; i < ranked.length; i++) {
           if (picked.indexOf(ranked[i]) > -1) continue;
           if ((leaveAt - r.endAt) / 60000 < 25) break;
+          if (ctx.maxPicks && picked.length >= ctx.maxPicks) break;
           var trial = picked.concat([ranked[i]]);
           var tr = schedule(to, arrive, leaveAt, nnOrder(to, trial, origin), trav, origin, ctx.lunched, ctx.used);
           if (!tr.notFit.length && tr.skipped.length === r.skipped.length) { picked = trial; r = tr; }
@@ -653,6 +655,19 @@
             });
           }
           ctx.label = dayStops.length > 1 || nDays > 1 ? stop.name : "";
+          // keep the trip's other named places out of this stop's plan
+          var stopIdx = assign[d][si];
+          ctx.block = {};
+          stops.forEach(function (o2, i2) { if (i2 !== stopIdx && o2.placeId) ctx.block[o2.placeId] = true; });
+          // stops close to each other get smaller walking areas
+          ctx.radius = null;
+          if (stop.placeId && stops.length > 1) {
+            var gaps = stops.filter(function (o2, i2) { return i2 !== stopIdx; }).map(function (o2) { return dist(stop, o2); });
+            ctx.radius = Math.max(0.8, Math.min(2.5, 0.45 * Math.min.apply(null, gaps)));
+          }
+          // a stop you stay at for several days spreads its places over those days
+          var spanLeft = assign.slice(d).filter(function (a) { return a.indexOf(stopIdx) > -1; }).length;
+          ctx.maxPicks = spanLeft > 1 ? Math.max(1, Math.ceil(poolFor(stop, Object.assign({}, used, ctx.block), input.from, ctx.radius).list.length / spanLeft)) : null;
           var act;
           if (actOn) act = activities(stop, t, stopEnd, trav, inc, ctx);
           else {
