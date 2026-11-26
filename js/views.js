@@ -241,7 +241,8 @@
       "<li>" + icon("bell") + "<span><strong>Never miss a step</strong>Day itinerary, reminders and calendar alerts.</span></li></ul>" +
       '<a class="btn btn--primary btn--block" href="#/signup">Create free account</a>' +
       '<a class="btn btn--ghost btn--block" href="#/login">Log in</a>' +
-      '<button class="link-btn" type="button" data-action="guest">Continue as guest</button>'), { auth: true });
+      '<button class="link-btn" type="button" data-action="guest">Continue as guest</button>' +
+      '<a class="link-btn" href="#/guide">' + icon("info") + " What is Tara? See how it works</a>"), { auth: true });
   };
   T.actions.guest = function () { T.auth.guest(); T.router.go("setup", true); };
 
@@ -378,6 +379,7 @@
       '<a href="#/ask?q=Surprise%20me!">' + icon("sparkle") + "Surprise me</a></div>" +
       heroDeco() +
       "</section>" +
+      (T.guideCard ? T.guideCard() : "") +
       '<section class="section"><div class="cats">' + C.categories.map(function (c, i) {
         return '<a class="cat-tile cat--' + c.id + '" style="--d:' + i * 40 + 'ms" href="#/explore?cat=' + c.id + '"><span>' + icon(c.icon) + "</span>" + esc(c.short) + "</a>";
       }).join("") + "</div></section>" +
@@ -792,6 +794,7 @@
       '<div class="place-hero">' + photo(p, "place-hero__ph") + '<div class="place-hero__shade"></div>' +
       '<div class="place-hero__bar"><button class="icon-btn icon-btn--glass" type="button" data-action="back" aria-label="Back">' + icon("chev-l") + "</button>" +
       '<span class="grow"></span><button class="icon-btn icon-btn--glass" type="button" data-action="share-place" data-id="' + esc(p.id) + '" aria-label="Share">' + icon("share") + "</button>" +
+      '<button class="icon-btn icon-btn--glass" type="button" data-action="' + (T.hasMyPhoto && T.hasMyPhoto(p.id) ? "place-photo-rm" : "place-photo") + '" data-id="' + esc(p.id) + '" aria-label="' + (T.hasMyPhoto && T.hasMyPhoto(p.id) ? "Remove my photo" : "Add my photo") + '">' + icon(T.hasMyPhoto && T.hasMyPhoto(p.id) ? "trash" : "camera") + "</button>" +
       '<button class="icon-btn icon-btn--glass" type="button" data-action="fav" data-id="' + esc(p.id) + '" aria-pressed="' + saved + '" aria-label="Save">' + icon(saved ? "heart-fill" : "heart") + "</button></div>" +
       '<div class="place-hero__title">' + catChip(p) + (T.dest.city(p.city) ? ' <a class="crumb crumb--light" href="#/city/' + p.city + '">' + esc(T.dest.city(p.city).provinceName) + " › " + esc(T.dest.city(p.city).name) + "</a>" : "") +
       "<h1>" + esc(p.name) + "</h1><p>" + icon("pin") + esc(p.address || p.area || "") + "</p></div></div>" +
@@ -806,7 +809,8 @@
       '<a class="btn btn--ghost" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=' + p.lat + "," + p.lng + '">' + icon("map") + "Directions</a>" +
       (T.engage && p.source !== "osm" ? T.engage.visitBtn(p) : "") + "</div>" +
       (p.desc ? '<section class="psec"><h2>About</h2><p>' + esc(p.desc) + "</p></section>" : "") +
-      '<section class="psec"><h2>Good to know</h2><dl class="facts">' +
+      '<section class="psec"><div class="sec-head"><h2>Good to know</h2>' + (p.source !== "osm" ? '<button class="btn btn--sm btn--ghost" type="button" data-action="place-edit" data-id="' + esc(p.id) + '">' + icon("edit") + "Fix info</button>" : "") + "</div>" +
+      (p.editedByYou ? '<p class="fine">' + icon("check") + " Includes your fixes.</p>" : "") + '<dl class="facts">' +
       "<div><dt>" + icon("clock") + "Hours</dt><dd>" + esc(T.places.hoursText(p)) + "</dd></div>" +
       (p.room ? "<div><dt>" + icon("bed") + "Room rate</dt><dd>About <b>" + T.peso(p.room) + '</b> per night <span class="muted">· ' + esc((p.kind || "Hotel") + ", " + ((C.lodging.filter(function (l) { return l.id === p.tier; })[0] || {}).label || "") + " · approx., check before booking") + "</span></dd></div>" : "") +
       (p.room || p.cat === "food" || p.cat === "cafe" ? "" : "<div><dt>" + icon("ticket") + "Entrance</dt><dd>" + (fee.amount == null ? esc(fee.label) : fee.amount === 0 ? "Free" : T.peso(fee.amount) +
@@ -1425,7 +1429,7 @@
       '<div class="result__actions">' +
       '<button class="btn btn--primary btn--lg" type="button" data-action="save-trip">' + icon("ticket") + "Save trip</button>" +
       '<button class="btn btn--ghost" type="button" data-action="plan-ics">' + icon("calendar") + "Add to calendar</button>" +
-      '<button class="btn btn--ghost" type="button" data-action="plan-share">' + icon("share") + "Share</button></div>" +
+      '<button class="btn btn--ghost" type="button" data-action="plan-share">' + icon("share") + "Share</button>" + '<button class="btn btn--ghost" type="button" data-action="trip-link">' + icon("users") + "Send trip link</button></div>" +
       '<p class="fine">Fares, times, room rates and fees are estimates based on standard fare guides and typical traffic. Check signboards, posted fare matrices and venue notices on the day.</p>' +
       "</section>";
     out.innerHTML = html;
@@ -1569,12 +1573,14 @@
       switchRow2("trip-notify", "Remind me", "Notifications for each step while the app is open, plus calendar alarms", t.notify, t.id) +
       '<div class="result__actions result__actions--tight"><button class="btn btn--ghost btn--sm" type="button" data-action="trip-ics" data-id="' + t.id + '">' + icon("calendar") + "Add to calendar</button>" +
       '<button class="btn btn--ghost btn--sm" type="button" data-action="trip-share" data-id="' + t.id + '">' + icon("share") + "Share</button>" +
+      '<button class="btn btn--ghost btn--sm" type="button" data-action="trip-link" data-id="' + t.id + '">' + icon("users") + "Send trip link</button>" +
       '<a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&origin=' + t.from.lat + "," + t.from.lng + "&destination=" + last.lat + "," + last.lng +
       (t.stops.length > 1 ? "&waypoints=" + t.stops.slice(0, -1).map(function (s) { return s.lat + "," + s.lng; }).join("%7C") : "") + '&travelmode=transit">' + icon("map") + "Google Maps</a></div></div>" +
       '<div class="mini-map mini-map--tall card" id="trip-map"></div>' +
       itinerary(t, { check: true }) +
       pasalubongCard(t) +
       expensesCard(t) +
+      (T.diaryCard ? T.diaryCard(t) : "") +
       '<div class="card"><h3 class="h3">' + icon("bell") + " Reminders</h3>" + reminderList(t) + "</div>" +
       '<div class="card"><h3 class="h3">' + icon("wallet") + " Budget</h3>" + budgetCard(t) + "</div>";
     mount(html, { nav: "trips" });
@@ -1880,6 +1886,8 @@
           }).join("") + "</ul>" + '<button class="btn btn--ghost btn--sm" type="button" data-action="share-fares">' + icon("share") + "Share my fare reports</button>"
             : '<p class="muted">On any trip plan, tap <b>Report real fare</b> under a ride to save what you actually paid and the signboard. Tara uses it next time, and you can share all your reports.</p>') + "</div>";
       })() +
+      (T.editsCard ? T.editsCard() : "") +
+      '<a class="card guide-link" href="#/guide">' + icon("info") + "<span><strong>How to use Tara</strong><small>What Tara does, step by step, and common questions</small></span>" + icon("chev-r") + "</a>" +
       '<div class="card"><h3 class="h3">' + icon("sparkle") + " App</h3>" +
       '<div class="field lang-field"><span class="field__label">' + icon("globe") + 'Language</span><div class="seg seg--2" role="radiogroup">' +
       [["en", "English"], ["tl", "Tagalog"]].map(function (l) {

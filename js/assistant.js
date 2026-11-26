@@ -311,6 +311,11 @@
 
   /* --- quick knowledge: app help and travel tips --- */
   var FAQ = [
+    [/\b(how (to|do i) use (tara|the app|this)|what is tara|ano ang tara|paano gamitin|guide|tutorial|how does (tara|this app|it) work|how to use)\b/, function () {
+      return { html: para("<b>Tara</b> is your travel buddy: find places per city, plan the commute (what to ride, signboards, fares with discounts), get a day schedule and budget, then save the trip and follow it live.") +
+        para("Quick start: set your location on Home → explore places → tap the orange <b>Plan</b> button → save the trip → tap <b>Start live trip</b> on the day.") +
+        actions([btn("#/guide", "Full guide", "info"), btn("#/plan", "Plan a trip", "route")]), chips: ["How do I get to Intramuros?", "Student discount on fares?"] };
+    }],
     [/\b(install|download|i ?download|home screen|play ?store|apk)\b/, function () {
       return { html: para("Tara works like an app:") + '<ul class="ask-ul"><li><b>Android (Chrome)</b>: tap <b>Install app</b> or menu ⋮ → <b>Add to Home screen</b></li><li><b>iPhone (Safari)</b>: tap Share → <b>Add to Home Screen</b></li><li>After installing, saved trips and places work even offline.</li></ul>' };
     }],
@@ -356,7 +361,7 @@
     if (has(t, /\b(thank|thanks|salamat|ty|tnx|thx)\b/)) return { html: plain(pick(["Walang anuman! Ingat sa biyahe.", "You're welcome! Enjoy the trip.", "Anytime — tara, lakad tayo!"])) };
     if (has(t, /\b(who are you|what are you|sino ka|ano ka|your name|pangalan mo)\b/)) return { html: plain("I'm Tara, the travel helper inside this app. I answer from Tara's own guide of places, routes and fares — so I'm best at questions about getting around and things to do in Metro Manila and Calabarzon.") , chips: SUGGEST.slice(0, 3) };
     if (has(t, /\b(emergency|911|police|pulis|ambulance|ambulansya|hospital|ospital|sunog|hotline|nawawala|naligaw|got lost|i am lost|im lost|aksidente|accident)\b/)) return emergency();
-    if (!e && has(t, /\b(what can you|help|tulong|tulungan|how to use|paano gamitin|commands|options)\b/)) return helpAns();
+    if (!e && has(t, /\b(what can you|help|tulong|tulungan|commands|options)\b/)) return helpAns();
     if (has(t, /\b(surprise|random|kahit saan|anywhere|bahala ka|where should (i|we) go|saan (kami|ako|tayo) (pupunta|pwede|magandang)|saan maganda|ideas?)\b/) && !catOf(t) && !e) return surpriseAns();
     if (has(t, /\b(my|next|upcoming) trip\b|\bbiyahe ko\b|\blakad ko\b/)) return nextTripAns();
     if (has(t, /\b(discount|discounted|student|students|senior|seniors|pwd|estudyante|diskwento|diskuwento|20 ?percent|50 ?percent)\b/) && !has(t, /\b(how (do|to) (i )?get|papunta|from)\b/)) return discountAns(placeE);
@@ -412,6 +417,8 @@
     return chips && chips.length ? '<div class="ask-chips">' + chips.slice(0, 4).map(function (c) { return '<button class="chip chip--sm" type="button" data-action="ask-chip" data-q="' + esc(c) + '">' + esc(c) + "</button>"; }).join("") + "</div>" : "";
   }
   function scrollDown() {
+    var pop = $(".askpop__body");
+    if (pop && pop.contains($("#chat"))) { pop.scrollTo({ top: pop.scrollHeight, behavior: T.reduceMotion ? "auto" : "smooth" }); return; }
     var last = $("#chat .msg:last-of-type");
     if (last) last.scrollIntoView({ block: "start", behavior: T.reduceMotion ? "auto" : "smooth" });
   }
@@ -468,25 +475,121 @@
   T.actions["ask-chip"] = function (el) { ask(el.dataset.q); };
   T.actions["ask-clear"] = function () { T.data.set("asked", T.data.get("asked", 0) + chatLog().filter(function (m) { return m.who === "me"; }).length); T.data.set("chat", []); T.router.resolve(); };
 
-  /* ---------- floating button on browsing screens ---------- */
-  var FAB_ON = { home: 1, explore: 1, city: 1, trips: 1, profile: 1, place: 1 };
-  function fab() {
-    var el = $(".ask-fab");
-    if (!el) {
-      el = document.createElement("a");
-      el.className = "ask-fab";
-      el.href = "#/ask";
-      el.setAttribute("aria-label", "Ask Tara");
-      el.innerHTML = icon("chat") + "<span>Ask Tara</span>";
-      document.body.appendChild(el);
-    }
-    var r = T.router.parse();
-    el.hidden = !(T.auth.current() && FAB_ON[r.name]);
-    el.classList.toggle("ask-fab--mini", r.name === "place");
+  /* ---------- floating chat bubble: ask anytime, from any screen ---------- */
+  var HIDE_ON = { ask: 1, live: 1, welcome: 1, login: 1, signup: 1, setup: 1 };
+  var POSK = "tara.bubble.pos";
+  function bubbleEl() {
+    var el = $(".ask-bubble");
+    if (el) return el;
+    el = document.createElement("button");
+    el.type = "button";
+    el.className = "ask-bubble";
+    el.setAttribute("aria-label", "Ask Tara — your travel helper");
+    el.innerHTML = '<svg class="logo-av" aria-hidden="true"><use href="#i-logo"/></svg><span class="ask-bubble__dot" aria-hidden="true">' + icon("chat") + "</span>";
+    document.body.appendChild(el);
+    var pos = T.store.get(POSK, null);
+    place(el, pos ? pos.side : "right", pos ? pos.y : null);
+    drag(el);
+    return el;
   }
-  window.addEventListener("hashchange", function () { setTimeout(fab, 0); });
-  document.addEventListener("DOMContentLoaded", function () { setTimeout(fab, 0); });
+  function place(el, side, y) {
+    var vh = window.innerHeight, min = 80, max = vh - 78 - (window.innerWidth < 980 ? 68 + 12 : 20);
+    if (y == null) y = max;
+    y = Math.max(min, Math.min(max, y));
+    el.dataset.side = side;
+    el.style.top = y + "px";
+    el.style.left = side === "left" ? "12px" : "auto";
+    el.style.right = side === "right" ? "12px" : "auto";
+  }
+  function drag(el) {
+    var sx, sy, ox, oy, moved = false, down = false;
+    el.addEventListener("pointerdown", function (e) {
+      down = true; moved = false; sx = e.clientX; sy = e.clientY;
+      var r = el.getBoundingClientRect(); ox = r.left; oy = r.top;
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener("pointermove", function (e) {
+      if (!down) return;
+      var dx = e.clientX - sx, dy = e.clientY - sy;
+      if (!moved && Math.abs(dx) + Math.abs(dy) < 8) return;
+      moved = true;
+      el.classList.add("is-dragging");
+      el.style.left = Math.max(4, Math.min(window.innerWidth - 64, ox + dx)) + "px";
+      el.style.right = "auto";
+      el.style.top = Math.max(60, Math.min(window.innerHeight - 70, oy + dy)) + "px";
+    });
+    var up = function () {
+      if (!down) return;
+      down = false;
+      el.classList.remove("is-dragging");
+      if (!moved) { openPop(); return; }
+      var r = el.getBoundingClientRect(), side = r.left + r.width / 2 < window.innerWidth / 2 ? "left" : "right";
+      place(el, side, r.top);
+      T.store.set(POSK, { side: side, y: r.top });
+    };
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", function () { down = false; el.classList.remove("is-dragging"); });
+    el.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPop(); } });
+  }
+  function popEl() {
+    var el = $(".askpop");
+    if (el) return el;
+    el = document.createElement("section");
+    el.className = "askpop";
+    el.hidden = true;
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-label", "Ask Tara");
+    document.body.appendChild(el);
+    return el;
+  }
+  function openPop() {
+    if ($("#chat") && T.router.parse().name === "ask") return;
+    var el = popEl(), h = chatLog();
+    el.innerHTML = '<header class="askpop__head"><span class="ask-head__av" aria-hidden="true"><svg class="logo-av"><use href="#i-logo"/></svg></span>' +
+      '<div><strong>Ask Tara</strong><small><span class="dot-live"></span>Ask anything about your trip</small></div>' +
+      '<a class="icon-btn" href="#/ask" aria-label="Open full screen">' + icon("chev-u") + "</a>" +
+      '<button class="icon-btn" type="button" data-action="askpop-close" aria-label="Close">' + icon("close") + "</button></header>" +
+      '<div class="askpop__body"><div class="chat" id="chat" aria-live="polite">' + bubble({ who: "bot", html: greet().html }) +
+      h.slice(-12).map(bubble).join("") + chipsHtml(h.length ? ["Surprise me!", "How do I get to Intramuros?", "How to use Tara"] : SUGGEST) + "</div></div>" +
+      '<form class="askpop__bar" data-submit="ask" autocomplete="off"><input class="input" name="q" placeholder="Type your question…" aria-label="Your question" enterkeyhint="send" maxlength="200">' +
+      '<button class="ask-bar__send" type="submit" aria-label="Send">' + icon("arrow") + "</button></form>";
+    el.hidden = false;
+    document.body.classList.add("askpop-open");
+    requestAnimationFrame(function () { el.classList.add("is-open"); var b = $(".askpop__body"); if (b) b.scrollTop = b.scrollHeight; });
+    if (window.innerWidth >= 980) setTimeout(function () { var i = $(".askpop__bar input"); if (i) i.focus(); }, 200);
+  }
+  function closePop() {
+    var el = $(".askpop");
+    if (!el || el.hidden) return;
+    el.classList.remove("is-open");
+    document.body.classList.remove("askpop-open");
+    setTimeout(function () { el.hidden = true; el.innerHTML = ""; }, 250);
+  }
+  T.actions["askpop-close"] = closePop;
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePop(); });
+  function fab() {
+    var r = T.router.parse(), el = bubbleEl();
+    var show = !!T.auth.current() && !HIDE_ON[r.name] && !document.body.classList.contains("is-auth");
+    el.hidden = !show;
+    if (!show) closePop();
+    // a friendly hello the first time in a session
+    if (show && !sessionStorage.getItem("tara.bubble.hi")) {
+      try { sessionStorage.setItem("tara.bubble.hi", "1"); } catch (e) {}
+      setTimeout(function () {
+        if (el.hidden || $(".askpop.is-open")) return;
+        var tip = document.createElement("div");
+        tip.className = "ask-tip ask-tip--" + el.dataset.side;
+        tip.textContent = "Hi! Ask me anything — fares, routes, places 👋";
+        tip.style.top = (parseFloat(el.style.top) + 8) + "px";
+        document.body.appendChild(tip);
+        setTimeout(function () { tip.classList.add("is-leaving"); setTimeout(function () { tip.remove(); }, 400); }, 4200);
+      }, 1500);
+    }
+  }
+  var origResolve = T.router.resolve;
+  T.router.resolve = function () { closePop(); var out = origResolve.apply(this, arguments); setTimeout(fab, 0); return out; };
+  window.addEventListener("resize", function () { var el = $(".ask-bubble"); if (el) place(el, el.dataset.side, parseFloat(el.style.top)); });
   setTimeout(fab, 300);
 
-  T.assistant = { answer: answer, ask: ask, entities: entities, norm: norm, fab: fab };
+  T.assistant = { answer: answer, ask: ask, entities: entities, norm: norm, fab: fab, open: openPop, close: closePop };
 })();
