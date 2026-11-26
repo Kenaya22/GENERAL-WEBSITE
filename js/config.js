@@ -43,7 +43,7 @@ TARA.config = {
   /* ----- Destinations (Klook-style): province → cities -----
      radius: km from the center counted as "in this city". wiki: cover photo. */
   destinations: [
-    { id: "laguna", name: "Laguna", region: "CALABARZON", blurb: "Hot springs, waterfalls and Rizal's hometown", cities: [
+    { id: "laguna", name: "Laguna", blurb: "Hot springs, waterfalls and Rizal's hometown", cities: [
       { id: "calamba", name: "Calamba", lat: 14.2117, lng: 121.1653, radius: 9, wiki: "Calamba, Laguna", blurb: "Hot-spring capital of the Philippines and birthplace of José Rizal." },
       { id: "los-banos", name: "Los Baños", lat: 14.1691, lng: 121.2414, radius: 6, wiki: "Los Baños, Laguna", blurb: "University town at the foot of Mount Makiling — forests, springs and buko pie." },
       { id: "santa-rosa", name: "Santa Rosa", lat: 14.2900, lng: 121.0900, radius: 8, wiki: "Santa Rosa, Laguna", blurb: "Theme parks, Nuvali's lakes and lifestyle malls." },
@@ -55,7 +55,7 @@ TARA.config = {
       { id: "liliw", name: "Liliw", lat: 14.1307, lng: 121.4365, radius: 3, wiki: "Liliw", blurb: "The tsinelas (slipper) capital of Laguna." },
       { id: "paete", name: "Paete", lat: 14.3650, lng: 121.4830, radius: 3, wiki: "Paete", blurb: "Woodcarving capital of the Philippines." },
     ] },
-    { id: "metro-manila", name: "Metro Manila", region: "NCR", blurb: "History, museums, food crawls and big malls", cities: [
+    { id: "metro-manila", name: "Metro Manila", blurb: "History, museums, food crawls and big malls", cities: [
       { id: "manila", name: "Manila", lat: 14.5960, lng: 120.9800, radius: 5, wiki: "Manila", blurb: "The capital — Intramuros, Binondo, Rizal Park and the national museums." },
       { id: "pasay", name: "Pasay", lat: 14.5378, lng: 120.9900, radius: 4, wiki: "SM Mall of Asia", blurb: "Bayside malls, sunsets and the airport." },
       { id: "makati", name: "Makati", lat: 14.5547, lng: 121.0244, radius: 3.5, wiki: "Makati", blurb: "Business district with museums, parks and dining." },
@@ -63,18 +63,18 @@ TARA.config = {
       { id: "quezon-city", name: "Quezon City", lat: 14.6516, lng: 121.0493, radius: 9, wiki: "Quezon City", blurb: "The biggest city of Metro Manila — parks, food parks and universities." },
       { id: "muntinlupa", name: "Muntinlupa (Alabang)", lat: 14.4180, lng: 121.0400, radius: 5, wiki: "Alabang", blurb: "Southern gateway with malls and bus terminals." },
     ] },
-    { id: "cavite", name: "Cavite", region: "CALABARZON", blurb: "Cool Tagaytay air and revolutionary history", cities: [
+    { id: "cavite", name: "Cavite", blurb: "Cool Tagaytay air and revolutionary history", cities: [
       { id: "tagaytay", name: "Tagaytay", lat: 14.1100, lng: 120.9700, radius: 8, wiki: "Tagaytay", blurb: "Cool weather, Taal Volcano views and bulalo." },
       { id: "kawit", name: "Kawit", lat: 14.4363, lng: 120.9014, radius: 3, wiki: "Aguinaldo Shrine", blurb: "Where Philippine independence was declared in 1898." },
     ] },
-    { id: "batangas", name: "Batangas", region: "CALABARZON", blurb: "Heritage towns, kapeng barako and beaches", cities: [
+    { id: "batangas", name: "Batangas", blurb: "Heritage towns, kapeng barako and beaches", cities: [
       { id: "taal", name: "Taal", lat: 13.8803, lng: 120.9230, radius: 4, wiki: "Taal, Batangas", blurb: "Spanish-era heritage town with Asia's largest Catholic basilica." },
       { id: "lipa", name: "Lipa", lat: 13.9411, lng: 121.1631, radius: 7, wiki: "Lipa, Batangas", blurb: "Coffee country and gateway to southern Batangas." },
     ] },
-    { id: "rizal", name: "Rizal", region: "CALABARZON", blurb: "Pilgrim churches, waterfalls and art in the hills", cities: [
+    { id: "rizal", name: "Rizal", blurb: "Pilgrim churches, waterfalls and art in the hills", cities: [
       { id: "antipolo", name: "Antipolo", lat: 14.5864, lng: 121.1760, radius: 7, wiki: "Antipolo", blurb: "Pilgrimage city with views over Metro Manila." },
     ] },
-    { id: "quezon", name: "Quezon", region: "CALABARZON", blurb: "Colorful festivals and longganisa", cities: [
+    { id: "quezon", name: "Quezon", blurb: "Colorful festivals and longganisa", cities: [
       { id: "lucban", name: "Lucban", lat: 14.1136, lng: 121.5563, radius: 4, wiki: "Lucban", blurb: "Pahiyas Festival town — pancit habhab and longganisa." },
     ] },
   ],
@@ -107,7 +107,7 @@ TARA.config = {
       desc: "The church where Rizal was baptized. Its baptismal font is still on display in the side chapel.",
       tips: ["Dress modestly", "Quiet during Mass"] },
     { id: "calamba-jar", name: "Giant Calamba Claypot", cat: "heritage", area: "Calamba, Laguna", address: "Calamba Plaza, Poblacion", lat: 14.2116, lng: 121.1668,
-      rating: 4.3, hours: ["00:00", "23:59"], fee: 0, visit: 15,
+      rating: 4.3, hours: ["00:00", "23:59"], fee: 0, visit: 15, wiki: "Calamba, Laguna",
       desc: "The city's landmark giant clay jar (calamba), engraved with the names of the barangays. A classic photo stop beside the plaza.",
       tips: ["Best photos late afternoon", "Short walk from the Rizal Shrine"] },
     { id: "sm-calamba", name: "SM City Calamba", cat: "mall", area: "Calamba, Laguna", address: "National Highway, Brgy. Real, Calamba", lat: 14.2049, lng: 121.1555,
@@ -115,11 +115,11 @@ TARA.config = {
       desc: "The city's main mall with restaurants, a supermarket, cinemas and a transport terminal nearby on the National Highway.",
       tips: ["Buses to Manila stop along the highway outside", "Free Wi-Fi in the atrium"] },
     { id: "calamba-market", name: "Calamba Public Market", cat: "market", area: "Calamba, Laguna", address: "Poblacion, Calamba", lat: 14.2101, lng: 121.1640,
-      rating: 4.1, hours: ["05:00", "19:00"], fee: 0, visit: 45, price: 1,
+      rating: 4.1, hours: ["05:00", "19:00"], fee: 0, visit: 45, price: 1, wiki: "Espasol",
       desc: "Fresh produce, kakanin and Laguna pasalubong like espasol and buko pie, plus quick lomi and pancit stalls.",
       tips: ["Go early for the freshest goods", "Bring small bills"] },
     { id: "pansol", name: "Pansol Hot Spring Resorts", cat: "resort", area: "Calamba, Laguna", address: "Brgy. Pansol, Calamba", lat: 14.1850, lng: 121.1885,
-      rating: 4.4, hours: ["08:00", "22:00"], fee: { regular: 300, discounted: 300, note: "day use varies by resort" }, visit: 240,
+      rating: 4.4, hours: ["08:00", "22:00"], fee: { regular: 300, discounted: 300, note: "day use varies by resort" }, visit: 240, wiki: "Pansol",
       desc: "Calamba is the hot-spring capital of the Philippines. Dozens of private and public resorts with warm spring-fed pools line the road in Pansol.",
       tips: ["Weekday rates are cheaper", "Bring your own food — most resorts allow it", "Book private pools ahead on weekends"] },
     { id: "makiling-gardens", name: "Makiling Botanic Gardens", cat: "park", area: "Los Baños, Laguna", address: "UPLB, Los Baños", lat: 14.1588, lng: 121.2375,
@@ -139,9 +139,38 @@ TARA.config = {
       desc: "A wide lake park where you can feed koi, bike the trails and watch the sunset, beside Solenad's restaurants.",
       tips: ["Bike rentals nearby", "Feed the fish at the boardwalk", "Great at golden hour"] },
     { id: "solenad", name: "Ayala Malls Solenad", cat: "mall", area: "Santa Rosa, Laguna", address: "Nuvali, Santa Rosa", lat: 14.2408, lng: 121.0583,
-      rating: 4.5, hours: ["10:00", "21:00"], fee: 0, visit: 90,
+      rating: 4.5, hours: ["10:00", "21:00"], fee: 0, visit: 90, wiki: "Nuvali",
       desc: "An open-air lifestyle mall with restaurants and cafés around landscaped courtyards next to Nuvali Park.",
       tips: ["Lots of al fresco dining", "Parking fills up on weekend evenings"] },
+    // ---- More Calamba: cafés, food and landmarks ---------------------------------
+    { id: "starbucks-sm-calamba", name: "Starbucks SM City Calamba", cat: "cafe", area: "Calamba, Laguna", address: "SM City Calamba, National Highway, Brgy. Real", lat: 14.2051, lng: 121.1559,
+      rating: 4.3, hours: ["10:00", "21:00"], fee: 0, visit: 45, price: 2, wiki: "Starbucks",
+      desc: "Coffee, frappes and pastries inside SM City Calamba — air-conditioned and good for waiting out the heat or rain before your bus.",
+      tips: ["Free Wi-Fi for customers", "Buses to Manila stop on the highway outside the mall"] },
+    { id: "bos-sm-calamba", name: "Bo's Coffee SM City Calamba", cat: "cafe", area: "Calamba, Laguna", address: "SM City Calamba, National Highway, Brgy. Real", lat: 14.2047, lng: 121.1553,
+      rating: 4.3, hours: ["10:00", "21:00"], fee: 0, visit: 45, price: 2, wiki: "Bo's Coffee",
+      desc: "Filipino coffee chain serving local beans from Benguet, Sagada and Mindanao, plus snacks and cakes.",
+      tips: ["Try a drink made with local Philippine beans"] },
+    { id: "kapeng-barako-calamba", name: "Kapeng Barako & Kakanin at Calamba Market", cat: "cafe", area: "Calamba, Laguna", address: "Calamba Public Market, Poblacion", lat: 14.2099, lng: 121.1643,
+      rating: 4.2, hours: ["05:00", "18:00"], fee: 0, visit: 30, price: 1, wiki: "Kapeng barako",
+      desc: "Old-school market stalls pouring strong kapeng barako with puto, bibingka and other kakanin — the cheapest coffee break in town.",
+      tips: ["Mornings are best", "Bring small bills"] },
+    { id: "max-sm-calamba", name: "Max's Restaurant SM City Calamba", cat: "food", area: "Calamba, Laguna", address: "SM City Calamba, National Highway, Brgy. Real", lat: 14.2050, lng: 121.1552,
+      rating: 4.3, hours: ["10:00", "21:00"], fee: 0, visit: 60, price: 2, wiki: "Max's Restaurant",
+      desc: "Classic Filipino family restaurant known for its fried chicken, sinigang and kare-kare.",
+      tips: ["Good for groups — order platters to share"] },
+    { id: "mang-inasal-calamba", name: "Mang Inasal SM City Calamba", cat: "food", area: "Calamba, Laguna", address: "SM City Calamba, National Highway, Brgy. Real", lat: 14.2048, lng: 121.1557,
+      rating: 4.2, hours: ["10:00", "21:00"], fee: 0, visit: 45, price: 1, wiki: "Chicken inasal",
+      desc: "Grilled chicken inasal with unlimited rice — a filling budget lunch.",
+      tips: ["Unlimited rice with most meals"] },
+    { id: "calamba-lomi", name: "Lomi & Pancit Stalls (Calamba Market)", cat: "food", area: "Calamba, Laguna", address: "Calamba Public Market, Poblacion", lat: 14.2103, lng: 121.1638,
+      rating: 4.2, hours: ["06:00", "18:00"], fee: 0, visit: 40, price: 1, wiki: "Lomi",
+      desc: "Thick, hearty Batangas-style lomi and pancit canton from the market's carinderias — cheap and local.",
+      tips: ["Add chicharon or kikiam on top", "Bring cash"] },
+    { id: "rizal-monument-calamba", name: "Rizal Monument (Calamba Plaza)", cat: "heritage", area: "Calamba, Laguna", address: "Calamba City Plaza, Poblacion", lat: 14.2120, lng: 121.1664,
+      rating: 4.4, hours: ["00:00", "23:59"], fee: 0, visit: 15, wiki: "José Rizal",
+      desc: "A towering statue of José Rizal at the city plaza of his hometown — one of the tallest Rizal monuments in the country.",
+      tips: ["Combine with the Rizal Shrine and the Calamba Claypot — all walkable"] },
 
     // ---- Intramuros & Manila ---------------------------------------------
     { id: "intramuros", name: "Intramuros", cat: "heritage", area: "Manila", address: "Intramuros, Manila", lat: 14.5896, lng: 120.9747,
@@ -169,15 +198,15 @@ TARA.config = {
       desc: "An ace-of-spades shaped bastion with garden ruins — one of the oldest stone fortifications in Intramuros.",
       tips: ["Quiet and shaded — good rest stop", "Great photo spot from the ramparts"] },
     { id: "bambike", name: "Bambike Ecotours", cat: "heritage", area: "Intramuros, Manila", address: "Plaza San Luis, Intramuros", lat: 14.5891, lng: 120.9750,
-      rating: 4.7, hours: ["09:00", "18:00"], fee: { regular: 1200, discounted: 1200, note: "guided bike tour, approx." }, visit: 90,
+      rating: 4.7, hours: ["09:00", "18:00"], fee: { regular: 1200, discounted: 1200, note: "guided bike tour, approx." }, visit: 90, wiki: "Bamboo bicycle",
       desc: "Guided tours of Intramuros on handmade bamboo bicycles — a fun way to see the walls, plazas and churches in two hours.",
       tips: ["Book ahead online on weekends", "Helmets and water included"] },
     { id: "barbaras", name: "Barbara's Heritage Restaurant", cat: "food", area: "Intramuros, Manila", address: "Plaza San Luis, Intramuros", lat: 14.5886, lng: 120.9755,
-      rating: 4.5, hours: ["11:00", "21:00"], fee: 0, visit: 75, price: 3,
+      rating: 4.5, hours: ["11:00", "21:00"], fee: 0, visit: 75, price: 3, wiki: "Kare-kare",
       desc: "Filipino-Spanish cuisine in a candle-lit colonial dining room, known for its lunch buffet and evening cultural show.",
       tips: ["Reserve for the dinner show", "Lunch buffet is the best value"] },
     { id: "ilustrado", name: "Ilustrado Restaurant", cat: "food", area: "Intramuros, Manila", address: "General Luna St., Intramuros", lat: 14.5881, lng: 120.9740,
-      rating: 4.4, hours: ["11:00", "21:00"], fee: 0, visit: 75, price: 3,
+      rating: 4.4, hours: ["11:00", "21:00"], fee: 0, visit: 75, price: 3, wiki: "Paella",
       desc: "Old-Manila fine dining in a restored colonial house. Try the paella and the sampaguita ice cream.",
       tips: ["Smart-casual dress", "Quieter on weekdays"] },
     { id: "rizal-park", name: "Rizal Park (Luneta)", cat: "park", area: "Ermita, Manila", address: "Roxas Blvd., Ermita", lat: 14.5826, lng: 120.9787,
@@ -214,37 +243,37 @@ TARA.config = {
       tips: ["Stay for the Manila Bay sunset", "PITX and LRT-1 are a short ride away"] },
     // ---- More Intramuros & Manila -----------------------------------------
     { id: "museo-intramuros", name: "Museo de Intramuros", cat: "museum", area: "Intramuros, Manila", address: "Arzobispo St. cor. Anda St., Intramuros", lat: 14.5906, lng: 120.9742,
-      rating: 4.6, hours: ["09:00", "17:00"], closed: [1], fee: { regular: 75, discounted: 50 }, visit: 45,
+      rating: 4.6, hours: ["09:00", "17:00"], closed: [1], fee: { regular: 75, discounted: 50 }, visit: 45, wiki: "Museo de Intramuros",
       desc: "Religious art and colonial treasures displayed inside the rebuilt San Ignacio church complex.", tips: ["Closed on Mondays", "Air-conditioned — good midday stop"] },
     { id: "plaza-roma", name: "Plaza de Roma", cat: "heritage", area: "Intramuros, Manila", address: "In front of Manila Cathedral", lat: 14.5911, lng: 120.9738,
-      rating: 4.4, hours: ["00:00", "23:59"], fee: 0, visit: 15,
+      rating: 4.4, hours: ["00:00", "23:59"], fee: 0, visit: 15, wiki: "Plaza de Roma (Manila)",
       desc: "The historic main square of Intramuros, framed by the cathedral and the Palacio del Gobernador.", tips: ["Kalesa rides start here"] },
     { id: "kalesa", name: "Kalesa Ride around Intramuros", cat: "heritage", area: "Intramuros, Manila", address: "Plaza de Roma, Intramuros", lat: 14.5913, lng: 120.9740,
-      rating: 4.3, hours: ["08:00", "18:00"], fee: { regular: 350, discounted: 350, note: "per carriage, about 30 min — agree on price first" }, visit: 30,
+      rating: 4.3, hours: ["08:00", "18:00"], fee: { regular: 350, discounted: 350, note: "per carriage, about 30 min — agree on price first" }, visit: 30, wiki: "Kalesa",
       desc: "See the walled city the old way, on a horse-drawn carriage past churches, plazas and the walls.", tips: ["Agree on the route and price before riding", "Good for groups of 2–4"] },
     { id: "puerta-real", name: "Puerta Real Gardens", cat: "park", area: "Intramuros, Manila", address: "Muralla St., Intramuros", lat: 14.5866, lng: 120.9743,
-      rating: 4.3, hours: ["08:00", "17:00"], fee: 0, visit: 20,
+      rating: 4.3, hours: ["08:00", "17:00"], fee: 0, visit: 20, wiki: "Puerta Real (Intramuros)",
       desc: "Landscaped gardens beside the old royal gate on the southern walls — shady and photogenic.", tips: ["Nice rest stop between museums"] },
     { id: "bahay-tsinoy", name: "Bahay Tsinoy Museum", cat: "museum", area: "Intramuros, Manila", address: "Anda St. cor. Cabildo St., Intramuros", lat: 14.5916, lng: 120.9757,
-      rating: 4.5, hours: ["09:00", "17:00"], closed: [1], fee: { regular: 100, discounted: 60 }, visit: 50,
+      rating: 4.5, hours: ["09:00", "17:00"], closed: [1], fee: { regular: 100, discounted: 60 }, visit: 50, wiki: "Bahay Tsinoy",
       desc: "The story of the Chinese in the Philippines told through dioramas, photos and artifacts.", tips: ["Closed on Mondays"] },
     { id: "memorare", name: "Memorare Manila 1945", cat: "heritage", area: "Intramuros, Manila", address: "Plaza de Sta. Isabel, Intramuros", lat: 14.5900, lng: 120.9761,
-      rating: 4.4, hours: ["00:00", "23:59"], fee: 0, visit: 10,
+      rating: 4.4, hours: ["00:00", "23:59"], fee: 0, visit: 10, wiki: "Memorare Manila 1945",
       desc: "A moving memorial to the civilians who died in the 1945 Battle of Manila.", tips: ["Quick stop on the way to San Agustin"] },
     { id: "silahis", name: "Silahis Arts & Artifacts", cat: "market", area: "Intramuros, Manila", address: "General Luna St., Intramuros", lat: 14.5884, lng: 120.9757,
-      rating: 4.5, hours: ["10:00", "19:00"], fee: 0, visit: 30, price: 2,
+      rating: 4.5, hours: ["10:00", "19:00"], fee: 0, visit: 30, price: 2, wiki: "Handicraft",
       desc: "A treasure house of Philippine handicrafts, textiles and souvenirs across several floors.", tips: ["Good for pasalubong that isn't food"] },
     { id: "la-cathedral-cafe", name: "La Cathedral Café", cat: "cafe", area: "Intramuros, Manila", address: "Cabildo St., Intramuros", lat: 14.5918, lng: 120.9730,
-      rating: 4.3, hours: ["09:00", "21:00"], fee: 0, visit: 45, price: 2,
+      rating: 4.3, hours: ["09:00", "21:00"], fee: 0, visit: 45, price: 2, wiki: "Coffee",
       desc: "Cozy café beside Manila Cathedral with rooftop views of the dome.", tips: ["Ask for the rooftop seats"] },
     { id: "delle-mitre", name: "Ristorante delle Mitre", cat: "food", area: "Intramuros, Manila", address: "General Luna St., Intramuros", lat: 14.5893, lng: 120.9749,
-      rating: 4.3, hours: ["10:00", "21:00"], fee: 0, visit: 60, price: 2,
+      rating: 4.3, hours: ["10:00", "21:00"], fee: 0, visit: 60, price: 2, wiki: "Adobo",
       desc: "Filipino comfort food at fair prices, a short walk from San Agustin Church.", tips: ["Good mid-range lunch option"] },
     { id: "nm-natural-history", name: "National Museum of Natural History", cat: "museum", area: "Ermita, Manila", address: "Agrifina Circle, Ermita", lat: 14.5834, lng: 120.9805,
       rating: 4.8, hours: ["09:00", "18:00"], closed: [1], fee: 0, visit: 90, wiki: "National Museum of Natural History (Manila)",
       desc: "The famous Tree of Life atrium and galleries of Philippine biodiversity — free entrance.", tips: ["Free, closed Mondays", "Book a free time slot online on weekends"] },
     { id: "baywalk", name: "Manila Baywalk (Sunset)", cat: "park", area: "Malate, Manila", address: "Roxas Blvd., Malate", lat: 14.5713, lng: 120.9817,
-      rating: 4.4, hours: ["00:00", "23:59"], fee: 0, visit: 45,
+      rating: 4.4, hours: ["00:00", "23:59"], fee: 0, visit: 45, wiki: "Manila Baywalk",
       desc: "The seaside promenade along Roxas Boulevard, famous for Manila Bay sunsets.", tips: ["Best around 5:30–6:15 PM"] },
 
     // ---- Makati, BGC, Quezon City, Alabang ---------------------------------
@@ -289,13 +318,13 @@ TARA.config = {
       rating: 4.3, hours: ["07:00", "18:00"], fee: { regular: 30, discounted: 25 }, visit: 60, wiki: "People's Park in the Sky",
       desc: "The highest point of Tagaytay, with 360° views of Taal Lake and the surrounding hills.", tips: ["Go before the clouds roll in", "Bring a jacket"] },
     { id: "picnic-grove", name: "Picnic Grove", cat: "park", area: "Tagaytay, Cavite", address: "Tagaytay–Nasugbu Hwy, Tagaytay", lat: 14.1060, lng: 121.0000,
-      rating: 4.3, hours: ["07:00", "19:00"], fee: { regular: 50, discounted: 40 }, visit: 90,
+      rating: 4.3, hours: ["07:00", "19:00"], fee: { regular: 50, discounted: 40 }, visit: 90, wiki: "Taal Lake",
       desc: "Ridge park with picnic huts, a zipline and horseback rides overlooking Taal.", tips: ["Rent a cottage for picnics"] },
     { id: "sky-ranch", name: "Sky Ranch Tagaytay", cat: "theme", area: "Tagaytay, Cavite", address: "Aguinaldo Hwy, Tagaytay", lat: 14.1087, lng: 120.9622,
-      rating: 4.3, hours: ["10:00", "22:00"], fee: { regular: 100, discounted: 80, note: "entrance; rides extra" }, visit: 150,
+      rating: 4.3, hours: ["10:00", "22:00"], fee: { regular: 100, discounted: 80, note: "entrance; rides extra" }, visit: 150, wiki: "Sky Ranch Tagaytay",
       desc: "Amusement park on the ridge, home of the Sky Eye Ferris wheel with Taal views.", tips: ["Ride the Sky Eye near sunset"] },
     { id: "mahogany-market", name: "Mahogany Market (Bulalo)", cat: "food", area: "Tagaytay, Cavite", address: "Mahogany Ave., Tagaytay", lat: 14.1127, lng: 120.9530,
-      rating: 4.4, hours: ["06:00", "21:00"], fee: 0, visit: 60, price: 2,
+      rating: 4.4, hours: ["06:00", "21:00"], fee: 0, visit: 60, price: 2, wiki: "Bulalo",
       desc: "The go-to spot for steaming bulalo straight from the beef market's eateries.", tips: ["Share one big bowl per 3–4 people"] },
     { id: "aguinaldo-shrine", name: "Aguinaldo Shrine", cat: "heritage", area: "Kawit, Cavite", address: "Tirona Hwy, Kawit", lat: 14.4344, lng: 120.8996,
       rating: 4.6, hours: ["08:00", "17:00"], closed: [1], fee: 0, visit: 60, wiki: "Aguinaldo Shrine",
@@ -324,7 +353,7 @@ TARA.config = {
       rating: 4.5, hours: ["06:00", "18:00"], fee: 0, visit: 75, wiki: "Kamay ni Hesus",
       desc: "Healing church and a hill with a giant statue of Christ — climb 300+ steps for the view.", tips: ["Wear comfy shoes for the climb"] },
     { id: "lucban-pasalubong", name: "Lucban Longganisa & Pasalubong", cat: "market", area: "Lucban, Quezon", address: "Lucban town proper", lat: 14.1128, lng: 121.5560,
-      rating: 4.4, hours: ["07:00", "19:00"], fee: 0, visit: 30, price: 1,
+      rating: 4.4, hours: ["07:00", "19:00"], fee: 0, visit: 30, price: 1, wiki: "Longganisa",
       desc: "Garlicky Lucban longganisa, broas and kiping souvenirs.", tips: ["Keep longganisa cool on the trip home"] },
   ],
 
@@ -373,19 +402,25 @@ TARA.config = {
 
     /* Common commuter routes between provincial towns (both directions).
        stops: boarding/transfer points in order; rides[i] goes from stops[i] to stops[i+1]. */
+    /* sign/back: what is written on the signboard; goes/goesBack: plain-language destination */
     corridors: [
       { from: ["calamba", "cabuyao", "los-banos", "santa-rosa", "binan"], to: ["tagaytay"],
-        stops: [{ name: "Calamba Crossing", lat: 14.2073, lng: 121.1565 }, { name: "Balibago Complex terminal, Sta. Rosa", lat: 14.2914, lng: 121.1063 }, { name: "Tagaytay Rotonda", lat: 14.1065, lng: 120.9603 }],
-        rides: [{ mode: "jeep", sign: "BALIBAGO / STA. ROSA", back: "CALAMBA" }, { mode: "jeep", sign: "TAGAYTAY", back: "BALIBAGO / STA. ROSA" }] },
-      { from: ["calamba", "cabuyao", "los-banos", "santa-rosa", "binan"], to: ["pagsanjan", "paete", "nagcarlan", "liliw", "lucban"],
+        stops: [{ name: "Calamba Crossing", lat: 14.2073, lng: 121.1565 }, { name: "Balibago Complex terminal (Santa Rosa)", lat: 14.2914, lng: 121.1063 }, { name: "Tagaytay Rotonda", lat: 14.1065, lng: 120.9603 }],
+        rides: [{ mode: "jeep", sign: "BALIBAGO / STA. ROSA", goes: "Santa Rosa (Balibago)", back: "CALAMBA", goesBack: "Calamba" },
+          { mode: "jeep", sign: "TAGAYTAY", goes: "Tagaytay", back: "BALIBAGO / STA. ROSA", goesBack: "Santa Rosa (Balibago)" }] },
+      { from: ["calamba", "cabuyao", "los-banos", "santa-rosa", "binan"], to: ["pagsanjan", "paete"],
         stops: [{ name: "Calamba Crossing", lat: 14.2073, lng: 121.1565 }, { name: "Santa Cruz terminal", lat: 14.2796, lng: 121.4156 }],
-        rides: [{ mode: "bus", sign: "STA. CRUZ", back: "CALAMBA / BUENDIA" }] },
-      { from: ["calamba", "cabuyao", "los-banos", "santa-rosa", "binan"], to: ["san-pablo"],
+        rides: [{ mode: "bus", sign: "STA. CRUZ", goes: "Santa Cruz, Laguna", back: "CALAMBA / BUENDIA", goesBack: "Calamba" }] },
+      { from: ["calamba", "cabuyao", "los-banos", "santa-rosa", "binan"], to: ["liliw", "nagcarlan"],
+        stops: [{ name: "Calamba Crossing", lat: 14.2073, lng: 121.1565 }, { name: "San Pablo City terminal", lat: 14.0698, lng: 121.3229 }, { name: "Liliw town plaza", lat: 14.1307, lng: 121.4365 }],
+        rides: [{ mode: "bus", sign: "SAN PABLO / LUCENA", goes: "San Pablo", back: "CALAMBA / BUENDIA", goesBack: "Calamba" },
+          { mode: "jeep", sign: "NAGCARLAN / LILIW", goes: "Nagcarlan and Liliw", back: "SAN PABLO", goesBack: "San Pablo" }] },
+      { from: ["calamba", "cabuyao", "los-banos", "santa-rosa", "binan"], to: ["san-pablo", "lucban"],
         stops: [{ name: "Calamba Crossing", lat: 14.2073, lng: 121.1565 }, { name: "San Pablo City terminal", lat: 14.0698, lng: 121.3229 }],
-        rides: [{ mode: "bus", sign: "SAN PABLO / LUCENA", back: "CALAMBA / BUENDIA" }] },
+        rides: [{ mode: "bus", sign: "SAN PABLO / LUCENA", goes: "San Pablo", back: "CALAMBA / BUENDIA", goesBack: "Calamba" }] },
       { from: ["calamba", "cabuyao", "los-banos", "santa-rosa"], to: ["lipa", "taal"],
         stops: [{ name: "Calamba Crossing", lat: 14.2073, lng: 121.1565 }, { name: "Tanauan (Big Ben) terminal", lat: 14.0863, lng: 121.1497 }],
-        rides: [{ mode: "jeep", sign: "TANAUAN", back: "CALAMBA" }] },
+        rides: [{ mode: "jeep", sign: "TANAUAN", goes: "Tanauan, Batangas", back: "CALAMBA", goesBack: "Calamba" }] },
     ],
 
     /* Rail lines — stations in order. fare: boarding + perKm, clamped to min/max. */
@@ -442,16 +477,29 @@ TARA.config = {
 
   /* Fare discounts by traveler type (RA 11314 students, RA 9994 seniors, RA 10754 PWD).
      LRT/MRT currently give 50% to these groups. */
+  /* Student, senior and PWD get the same discount, so they are one option.
+     Regular is the default; choosing the discount is optional. */
   travelerTypes: [
-    { id: "regular", label: "Regular", road: 0, rail: 0, entry: false },
-    { id: "student", label: "Student", road: 0.2, rail: 0.5, entry: true, id_name: "school ID" },
-    { id: "senior", label: "Senior citizen", road: 0.2, rail: 0.5, entry: true, id_name: "senior citizen ID" },
-    { id: "pwd", label: "PWD", road: 0.2, rail: 0.5, entry: true, id_name: "PWD ID" },
+    { id: "regular", label: "Regular", short: "Regular", road: 0, rail: 0, entry: false },
+    { id: "discount", label: "Student / Senior / PWD", short: "Student · Senior · PWD", road: 0.2, rail: 0.5, entry: true, id_name: "student, senior citizen or PWD ID" },
   ],
+  // older accounts and saved trips used separate types
+  travelerAliases: { student: "discount", senior: "discount", pwd: "discount" },
 
   /* Peak hours (weekdays) — road legs get slower */
   rushHours: [[6.5, 9.5], [16.5, 20]],
   rushFactor: 1.4,
 
-  mealBudget: { 1: 180, 2: 400, 3: 900 }, // per person
+  /* Typical food cost per person, in pesos */
+  mealBudget: { 1: 150, 2: 350, 3: 800 },
+  mealLabel: { 1: "₱100–200", 2: "₱250–450", 3: "₱600+" },
+
+  /* Overnight stays (multi-day trips). room: per night, sleeps 2.
+     meals: dinner + next-day breakfast per person. */
+  lodging: [
+    { id: "budget", label: "Budget", room: 1500, meals: 300, desc: "Inn, pension house or transient room" },
+    { id: "mid", label: "Mid-range", room: 3200, meals: 600, desc: "3-star hotel with breakfast nearby" },
+    { id: "comfort", label: "Comfort", room: 6500, meals: 1100, desc: "Upscale hotel or resort" },
+  ],
+  maxDays: 7,
 };

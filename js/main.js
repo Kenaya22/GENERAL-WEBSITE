@@ -28,7 +28,7 @@
     remove: function (id) { T.data.set("trips", this.raw().filter(function (t) { return t.id !== id; })); updateBadge(); },
     next: function () {
       var now = Date.now();
-      return this.all().filter(function (t) { return new Date(t.back ? t.back.arrive : t.option.arrive) >= now; })
+      return this.all().filter(function (t) { return T.planner.endTime(t) >= now; })
         .sort(function (a, b) { return new Date(a.option.depart) - new Date(b.option.depart); })[0] || null;
     },
   };
@@ -68,12 +68,14 @@
 
   /* ---------- Routes ---------- */
   var R = T.router;
-  ["welcome", "login", "signup", "setup", "home", "explore", "city", "place", "plan", "trips", "trip", "live", "profile", "notfound"].forEach(function (n) {
+  ["welcome", "login", "signup", "setup", "home", "explore", "city", "place", "plan", "trips", "trip", "live", "profile", "about", "notfound"].forEach(function (n) {
     R.on(n, function (r) { T.views[n](r); });
   });
   var open = { welcome: 1, login: 1, signup: 1 };
+  var anyone = { about: 1 };
   R.guard = function (r) {
     var u = T.auth.current();
+    if (anyone[r.name]) return null;
     if (!u && !open[r.name]) return "welcome";
     if (u && open[r.name]) return "home";
     return null;
@@ -140,7 +142,7 @@
         if (!r.at) return;
         var at = new Date(r.at).getTime();
         if (at <= now || at > horizon) return;
-        timers.push(setTimeout(function () { notify("Tara · " + t.to.name, r.text, t.id); }, at - now));
+        timers.push(setTimeout(function () { notify("Tara · " + t.name, r.text, t.id); }, at - now));
       });
     });
   };
@@ -185,6 +187,27 @@
   /* ---------- Online / offline ---------- */
   window.addEventListener("offline", function () { T.toast("You're offline", "Saved trips and featured places still work.", "info", "warn"); });
   window.addEventListener("online", function () { T.toast("Back online", "Live places and weather are available again.", "check"); });
+
+  /* ---------- Launch screens: loading → K & A Studios → app ---------- */
+  (function splash() {
+    var el = $("#splash");
+    if (!el) return;
+    var seen = false;
+    try { seen = sessionStorage.getItem("tara.splash") === "1"; } catch (e) {}
+    if (seen) { el.remove(); return; }
+    try { sessionStorage.setItem("tara.splash", "1"); } catch (e) {}
+    var stage = 0, timers = [];
+    var go = function (n) {
+      if (n <= stage) return;
+      stage = n;
+      if (n === 1) el.classList.add("is-studio");
+      if (n === 2) { el.classList.add("is-out"); timers.push(setTimeout(function () { el.remove(); }, 600)); }
+    };
+    var fast = T.reduceMotion;
+    timers.push(setTimeout(function () { go(1); }, fast ? 600 : 1500));
+    timers.push(setTimeout(function () { go(2); }, fast ? 1800 : 3700));
+    el.addEventListener("click", function () { go(stage + 1); });
+  })();
 
   /* ---------- Boot ---------- */
   if (!location.hash) history.replaceState(null, "", "#/" + (T.auth.current() ? "home" : "welcome"));

@@ -41,6 +41,12 @@
 
   T.auth = {
     users: function () { return store.get("tara.users", []); },
+    // public profile (name + photo) of any account on this device — used on reviews
+    profile: function (uid) {
+      if (!uid) return null;
+      if (uid === "guest") return store.get("tara.guest", null);
+      return this.users().filter(function (u) { return u.id === uid; })[0] || null;
+    },
     session: function () { return store.get("tara.session", null); },
     current: function () {
       var s = this.session();
@@ -106,6 +112,7 @@
   T.traveler = function () {
     var u = T.auth.current();
     var id = (u && u.type) || "regular";
+    id = (C.travelerAliases || {})[id] || id;
     return C.travelerTypes.filter(function (t) { return t.id === id; })[0] || C.travelerTypes[0];
   };
 
@@ -371,10 +378,26 @@
         : function (a, b) { return a.d - b.d; });
       return list;
     },
+    /* Reviews are saved in this browser (there is no server yet), so everyone
+       using Tara on this device sees them. Each has an id and the author's user id
+       so the author can edit or delete it later. */
     reviews: function (id) { return (store.get("tara.reviews", {})[id] || []).slice().sort(function (a, b) { return b.at - a.at; }); },
+    review: function (id, rid) { return this.reviews(id).filter(function (r) { return r.id === rid; })[0] || null; },
     addReview: function (id, r) {
       var all = store.get("tara.reviews", {});
+      r.id = r.id || "r_" + T.uid();
       (all[id] = all[id] || []).push(r);
+      if (!store.set("tara.reviews", all)) throw new Error("Not enough space on this device — try fewer or smaller photos.");
+      return r;
+    },
+    updateReview: function (id, rid, fields) {
+      var all = store.get("tara.reviews", {});
+      (all[id] || []).forEach(function (r) { if (r.id === rid) Object.assign(r, fields, { edited: Date.now() }); });
+      if (!store.set("tara.reviews", all)) throw new Error("Not enough space on this device — try fewer or smaller photos.");
+    },
+    deleteReview: function (id, rid) {
+      var all = store.get("tara.reviews", {});
+      all[id] = (all[id] || []).filter(function (r) { return r.id !== rid; });
       store.set("tara.reviews", all);
     },
     score: function (p) {

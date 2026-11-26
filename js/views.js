@@ -37,8 +37,11 @@
       (opts.actions || "") + "</header>";
   }
   function avatar(u, size) {
-    return '<span class="avatar' + (size ? " avatar--" + size : "") + '">' + esc(T.initials(u ? u.name : "?")) + "</span>";
+    var cls = "avatar" + (size ? " avatar--" + size : "");
+    if (u && u.photo) return '<span class="' + cls + ' avatar--img"><img src="' + esc(u.photo) + '" alt=""></span>';
+    return '<span class="' + cls + '">' + esc(T.initials(u ? u.name : "?")) + "</span>";
   }
+  T.avatar = avatar;
   function catChip(p) {
     var c = T.cat(p.cat);
     return '<span class="cat cat--' + c.id + '">' + icon(c.icon) + esc(c.short) + "</span>";
@@ -108,7 +111,7 @@
     opts = opts || {};
     pickCb = opts.onPick;
     pickMode = opts.mode || "location"; // "location" | "destination" | "origin"
-    var title = pickMode === "destination" ? "Where to?" : pickMode === "origin" ? "Starting point" : "Your location";
+    var title = opts.title || (pickMode === "destination" ? "Where to?" : pickMode === "origin" ? "Starting point" : "Your location");
     var cur = T.location.get();
     var u = T.auth.current();
     var html =
@@ -249,7 +252,7 @@
       field("name", "Full name", "text", "Juan dela Cruz", "name") +
       field("email", "Email", "email", "you@email.com", "email") +
       field("password", "Password", "password", "At least 6 characters", "new-password", true) +
-      '<div class="field"><span class="field__label">I travel as</span>' + travelerSeg("regular", "signup-type") +
+      '<div class="field"><span class="field__label">Fare discount <em class="opt-tag">optional</em></span>' + travelerSeg("regular", "signup-type") +
       '<p class="fine" id="type-note">' + typeNote("regular") + "</p></div>" +
       '<p class="form__error" role="alert" hidden></p>' +
       '<button class="btn btn--primary btn--block" type="submit">Sign up</button>' +
@@ -261,21 +264,23 @@
     return '<label class="field"><span class="field__label">' + label + '</span><span class="input-wrap"><input class="input" name="' + name + '" type="' + type + '" placeholder="' + ph + '" autocomplete="' + ac + '" required>' +
       (eye ? '<button class="input-eye" type="button" data-action="toggle-eye" aria-label="Show password">' + icon("eye") + "</button>" : "") + "</span></label>";
   }
+  function travId(id) { return (C.travelerAliases || {})[id] || id || "regular"; }
   function travelerSeg(cur, name) {
-    return '<div class="seg seg--4" role="radiogroup">' + C.travelerTypes.map(function (t) {
-      return '<label class="seg__opt"><input type="radio" name="' + name + '" value="' + t.id + '"' + (t.id === cur ? " checked" : "") + ' data-input="traveler-note"><span>' + esc(t.label.replace(" citizen", "")) + "</span></label>";
+    cur = travId(cur);
+    return '<div class="seg seg--2" role="radiogroup">' + C.travelerTypes.map(function (t) {
+      return '<label class="seg__opt"><input type="radio" name="' + name + '" value="' + t.id + '"' + (t.id === cur ? " checked" : "") + ' data-input="traveler-note"><span>' + esc(t.short) + "</span></label>";
     }).join("") + "</div>";
   }
   function typeNote(id) {
-    var t = C.travelerTypes.filter(function (x) { return x.id === id; })[0];
-    if (!t || t.id === "regular") return "Choose Student, Senior or PWD to see discounted fares automatically.";
-    return "You'll see " + Math.round(t.road * 100) + "% off jeepney, tricycle & bus fares and " + Math.round(t.rail * 100) + "% off LRT/MRT. Bring your " + t.id_name + ".";
+    var t = C.travelerTypes.filter(function (x) { return x.id === travId(id); })[0];
+    if (!t || t.id === "regular") return "Regular fares are used by default. Students, seniors and PWD get the same discount — pick it if you have an ID.";
+    return "You'll see " + Math.round(t.road * 100) + "% off jeepney, tricycle & bus fares and " + Math.round(t.rail * 100) + "% off LRT/MRT, plus discounted entrance fees. Bring your " + t.id_name + ".";
   }
   T.inputs["traveler-note"] = function (el) {
     var n = $("#type-note");
     if (n) n.textContent = typeNote(el.value);
-    if (el.name === "profile-type") { T.auth.update({ type: el.value }); T.toast("Traveler type updated", "Fares now use " + el.value + " rates.", "id"); }
-    if (el.name === "plan-type") { T.state.draft.type = el.value; }
+    if (el.name === "profile-type") { T.auth.update({ type: el.value }); T.toast("Fare type updated", el.value === "regular" ? "Fares now use regular rates." : "Student / senior / PWD discount is on.", "id"); }
+    if (el.name === "plan-type") { T.state.draft.type = el.value; T.state.draft.optionId = null; }
   };
   T.actions["toggle-eye"] = function (el) {
     var inp = el.parentNode.querySelector("input");
@@ -359,13 +364,23 @@
       '<button class="loc-chip" type="button" data-action="change-location">' + icon("pin") + "<span><small>You're in</small><strong>" + esc(here.label) + "</strong></span>" + icon("chev-r") + "</button>" +
       '<a href="#/profile" aria-label="Profile">' + avatar(u) + "</a></div>" +
       '<h1 class="home-hero__hi">' + esc(T.greeting()) + ", " + esc((u && u.name || "Traveler").split(" ")[0]) + "!</h1>" +
-      '<p class="home-hero__sub">Where do you want to go today? <span class="wx" id="home-wx"></span></p>' +
-      '<a class="search-bar" href="#/explore?focus=1">' + icon("search") + "<span>Search restaurants, malls, parks…</span></a>" +
+      '<p class="home-hero__sub">Tara, lakad tayo! Where to today? <span class="wx" id="home-wx"></span></p>' +
+      '<a class="search-bar" href="#/explore?focus=1">' + icon("search") + "<span>Search cafés, food, malls, parks…</span></a>" +
+      '<div class="quick">' +
+      '<a href="#/plan?days=1">' + icon("sun") + "Day trip</a>" +
+      '<a href="#/plan?days=2">' + icon("bed") + "Weekend getaway</a>" +
+      '<a href="#/explore?cat=food">' + icon("utensils") + "Food trip</a>" +
+      '<a href="#/explore?cat=cafe">' + icon("coffee") + "Café hopping</a></div>" +
+      heroDeco() +
       "</section>" +
-      '<section class="section"><div class="cats">' + C.categories.map(function (c) {
-        return '<a class="cat-tile cat--' + c.id + '" href="#/explore?cat=' + c.id + '"><span>' + icon(c.icon) + "</span>" + esc(c.short) + "</a>";
+      '<section class="section"><div class="cats">' + C.categories.map(function (c, i) {
+        return '<a class="cat-tile cat--' + c.id + '" style="--d:' + i * 40 + 'ms" href="#/explore?cat=' + c.id + '"><span>' + icon(c.icon) + "</span>" + esc(c.short) + "</a>";
       }).join("") + "</div></section>" +
       (trip ? '<section class="section">' + nextTripCard(trip) + "</section>" : "") +
+      '<section class="section"><div class="sec-head"><h2>' + icon("fire") + ' Featured trips</h2></div>' +
+      '<div class="feature" id="feature">' + C.dayTrips.map(function (id) { var p = T.places.get(id); return p ? featureSlide(p) : ""; }).join("") + "</div>" +
+      '<div class="feature-dots" id="feature-dots">' + C.dayTrips.map(function (id, i) { return '<button type="button" data-action="feature-go" data-i="' + i + '" aria-label="Slide ' + (i + 1) + '"' + (i ? "" : ' aria-current="true"') + "></button>"; }).join("") + "</div></section>" +
+      '<section class="section"><div class="sec-head"><h2>Trip ideas</h2></div><div class="ideas">' + tripIdeas().map(ideaCard).join("") + "</div></section>" +
       '<section class="section"><div class="sec-head"><h2>Destinations</h2><button class="link-strong" type="button" data-action="home-dest">All destinations</button></div>' +
       '<div class="hscroll hscroll--dest">' + C.popularCities.map(function (id) {
         var c = T.dest.city(id), n = cityCount(c);
@@ -378,8 +393,11 @@
       '<div class="rows" id="home-nearby">' + loader("Finding places around you…") + "</div></section>" +
       '<section class="section"><div class="sec-head"><h2>Day trips from ' + esc((here.label.split(",")[1] || here.label.split(",")[0]).trim()) + "</h2></div>" +
       '<div class="trip-grid">' + C.dayTrips.map(function (id) { return dayTripCard(T.places.get(id), here); }).join("") + "</div></section>" +
-      '<section class="section">' + discountCard() + "</section>";
+      cafeSection(here, curCity) +
+      '<section class="section">' + discountCard() + "</section>" +
+      '<a class="made-by" href="#/about"><span class="studio-mark studio-mark--sm" aria-hidden="true"><span>K</span><i>&amp;</i><span>A</span></span><span>Made with love by <b>K &amp; A Studios</b></span>' + icon("chev-r") + "</a>";
     mount(html, { nav: "home" });
+    startFeature();
 
     // weather
     T.weather.get(here).then(function (w) {
@@ -398,6 +416,63 @@
       T.photos.hydrate(box);
     });
   };
+  function heroDeco() {
+    return '<div class="hero-deco" aria-hidden="true"><span class="hero-sun"></span><span class="hero-cloud hero-cloud--1"></span><span class="hero-cloud hero-cloud--2"></span>' +
+      '<span class="hero-road"></span><span class="hero-jeep">' + icon("jeep") + "</span></div>";
+  }
+  function featureSlide(p) {
+    var o = T.planner.quick(T.location.get(), p);
+    return '<a class="fslide" href="#/plan?to=' + encodeURIComponent(p.id) + '">' + photo(p, "fslide__ph") + '<span class="fslide__shade"></span>' +
+      '<span class="fslide__body">' + catChip(p) + "<strong>" + esc(p.name) + "</strong><small>" + esc(p.area) + "</small>" +
+      (o ? "<em>" + icon("clock") + T.dur(o.minutes) + " · from " + T.peso(o.fare) + "</em>" : "") + '<span class="fslide__cta">Plan this trip ' + icon("arrow") + "</span></span></a>";
+  }
+  var featTimer = null;
+  function startFeature() {
+    clearInterval(featTimer);
+    var box = $("#feature");
+    if (!box) return;
+    var dots = $$("#feature-dots button");
+    var idx = function () { return Math.round(box.scrollLeft / Math.max(1, box.clientWidth)); };
+    box.addEventListener("scroll", function () {
+      var i = idx();
+      dots.forEach(function (d, k) { if (k === i) d.setAttribute("aria-current", "true"); else d.removeAttribute("aria-current"); });
+    }, { passive: true });
+    if (T.reduceMotion) return;
+    var paused = false;
+    box.addEventListener("pointerdown", function () { paused = true; });
+    featTimer = setInterval(function () {
+      if (!document.body.contains(box)) { clearInterval(featTimer); return; }
+      if (paused || document.hidden) return;
+      var n = (idx() + 1) % dots.length;
+      box.scrollTo({ left: n * box.clientWidth, behavior: "smooth" });
+    }, 4500);
+  }
+  T.actions["feature-go"] = function (el) {
+    var box = $("#feature");
+    if (box) box.scrollTo({ left: Number(el.dataset.i) * box.clientWidth, behavior: T.reduceMotion ? "auto" : "smooth" });
+  };
+  function tripIdeas() {
+    return [
+      { title: "Rizal's hometown", sub: "Shrine, church, plaza & market", photo: "rizal-shrine", href: "#/plan?city=calamba", days: 1 },
+      { title: "Intramuros + National Museum", sub: "2 stops · walls, churches & art", photo: "nm-fine-arts", href: "#/plan?stops=intramuros,nm-fine-arts", days: 1 },
+      { title: "Tagaytay & Taal weekend", sub: "2 stops · cool air & heritage town", photo: "taal-basilica", href: "#/plan?stops=tagaytay,taal&days=2", days: 2 },
+      { title: "Hot spring getaway", sub: "Pansol pools & Los Baños", photo: "pansol", href: "#/plan?stops=pansol,los-banos&days=2", days: 2 },
+    ];
+  }
+  function ideaCard(x) {
+    var p = T.places.get(x.photo);
+    return '<a class="idea" href="' + x.href + '">' + (p ? photo(p, "idea__ph") : "") + '<span class="idea__shade"></span>' +
+      '<span class="idea__badge">' + icon(x.days > 1 ? "bed" : "sun") + (x.days > 1 ? x.days + " days" : "Day tour") + "</span>" +
+      '<span class="idea__body"><strong>' + esc(x.title) + "</strong><small>" + esc(x.sub) + "</small></span></a>";
+  }
+  function cafeSection(here, curCity) {
+    var list = curCity ? T.places.query({ near: here, cat: "cafe", scope: { type: "city", id: curCity.id }, sort: "rating" }) : [];
+    if (list.length < 2) list = T.places.query({ near: here, cat: "cafe" }).slice(0, 6);
+    if (!list.length) return "";
+    var where = curCity && list[0].p.city === curCity.id ? curCity.name : "near you";
+    return '<section class="section"><div class="sec-head"><h2>' + icon("coffee") + " Coffee break in " + esc(where) + '</h2><a href="#/explore?cat=cafe' + (curCity ? "&city=" + curCity.id : "") + '">See all</a></div>' +
+      '<div class="hscroll">' + list.map(function (x) { return placeCard(x.p, x.d); }).join("") + "</div></section>";
+  }
   function loadNearby(here, cb) {
     T.places.nearby(here, 3000).then(function (items) { T.state.nearby = items; cb(items); }).catch(function () { cb(null); });
   }
@@ -413,15 +488,15 @@
   function discountCard() {
     var t = T.traveler();
     if (t.id !== "regular") {
-      return '<div class="note-card note-card--ok">' + icon("id") + "<div><strong>" + esc(t.label) + " discount is on</strong><p>Fares show " + Math.round(t.road * 100) + "% off jeep, tricycle & bus and " + Math.round(t.rail * 100) + "% off LRT. Remember your " + esc(t.id_name) + ".</p></div></div>";
+      return '<div class="note-card note-card--ok">' + icon("id") + "<div><strong>Student / senior / PWD discount is on</strong><p>Fares show " + Math.round(t.road * 100) + "% off jeep, tricycle & bus and " + Math.round(t.rail * 100) + "% off LRT/MRT. Remember your ID.</p></div></div>";
     }
-    return '<a class="note-card" href="#/profile">' + icon("id") + "<div><strong>Student, senior or PWD?</strong><p>Get 20% off jeep & bus fares and 50% off LRT. Set your traveler type in Profile.</p></div>" + icon("chev-r") + "</a>";
+    return '<a class="note-card" href="#/profile">' + icon("id") + "<div><strong>Student, senior or PWD?</strong><p>Optional: turn on your discount for 20% off jeep & bus and 50% off LRT/MRT.</p></div>" + icon("chev-r") + "</a>";
   }
   function nextTripCard(trip) {
     var dep = new Date(trip.option.depart);
     var live = new Date() >= T.addMin(dep, -60);
     return '<a class="next-trip" href="#/' + (live ? "live/" : "trip/") + trip.id + '"><div class="next-trip__top"><span class="badge">' + icon(live ? "route" : "ticket") + (live ? "Trip in progress" : "Next trip") + "</span><span>" + esc(live ? "Open live guide →" : countdown(dep)) + "</span></div>" +
-      "<h3>" + esc(trip.to.name) + "</h3><p>" + esc(T.date(dep)) + " · leave " + esc(T.time(dep)) + " · " + esc(trip.option.title) + "</p></a>";
+      "<h3>" + esc(trip.name) + "</h3><p>" + esc(T.date(dep)) + " · leave home " + esc(T.time(dep)) + " · " + esc(trip.option.title) + "</p></a>";
   }
   T.actions["home-dest"] = function () { T.pickDest({ onPick: function (sc) { T.router.go(sc.type === "city" ? "city/" + sc.id : "explore?province=" + sc.id); } }); };
   function countdown(d) {
@@ -488,7 +563,7 @@
      ====================================================================== */
   function scopeLabel(sc) {
     if (!sc) return { name: "All destinations", sub: "Every featured place" };
-    if (sc.type === "province") { var pv = T.dest.province(sc.id); return { name: "All of " + pv.name, sub: pv.region }; }
+    if (sc.type === "province") { var pv = T.dest.province(sc.id); return { name: "All of " + pv.name, sub: pv.blurb }; }
     var c = T.dest.city(sc.id); return { name: c.name, sub: c.provinceName };
   }
   function isHereScope(sc) { var cur = T.dest.current(); return !!(sc && cur && sc.type === "city" && sc.id === cur.id); }
@@ -520,6 +595,7 @@
     mount(html, { nav: "explore" });
     if (r.query.focus) setTimeout(function () { var i = $("#ex-q"); if (i) i.focus(); }, 50);
     renderExplore();
+    if (!mine && st.scope && st.scope.type === "city") loadCityLive(st.scope.id);
     if (mine && !T.state.nearby.length) {
       $("#ex-live").innerHTML = loader("Loading live places near you…");
       loadNearby(here, function (items) {
@@ -529,9 +605,26 @@
       });
     }
   };
+  T.state.cityLive = T.state.cityLive || {};
+  /* live cafés, restaurants, malls… for a chosen city (OpenStreetMap), not only for "near you" */
+  function loadCityLive(id) {
+    var c = T.dest.city(id), box = $("#ex-live");
+    if (!c || T.state.cityLive[id]) return;
+    if (box) box.innerHTML = loader("Loading more places in " + c.name + "…");
+    T.places.nearby({ lat: c.lat, lng: c.lng }, Math.min(6000, Math.round(c.radius * 1000))).then(function (items) {
+      T.state.cityLive[id] = items.filter(function (p) { return p.city === id; });
+      if ($("#ex-live")) $("#ex-live").innerHTML = "";
+      renderExplore();
+    }).catch(function () {
+      if ($("#ex-live")) $("#ex-live").innerHTML = '<p class="fine center">Offline — showing featured places in ' + esc(c.name) + " only.</p>";
+    });
+  }
   function exploreList(scope) {
     var st = T.state.explore, here = T.location.get();
-    return T.places.query({ cat: st.cat || null, q: st.q, near: here, sort: st.sort, scope: scope === undefined ? st.scope : scope, extra: isHereScope(st.scope) || scope === null ? T.state.nearby : [] });
+    var sc = scope === undefined ? st.scope : scope;
+    var extra = isHereScope(st.scope) || scope === null ? T.state.nearby : [];
+    if (sc && sc.type === "city" && T.state.cityLive[sc.id]) extra = extra.concat(T.state.cityLive[sc.id].filter(function (p) { return extra.indexOf(p) < 0; }));
+    return T.places.query({ cat: st.cat || null, q: st.q, near: here, sort: st.sort, scope: sc, extra: extra });
   }
   function renderExplore() {
     var st = T.state.explore, here = T.location.get();
@@ -608,7 +701,7 @@
     var html =
       '<div class="place-hero">' + '<div class="ph place-hero__ph" data-photo="city:' + c.id + '">' + T.art({ name: c.name, cat: "other" }) + "</div>" + '<div class="place-hero__shade"></div>' +
       '<div class="place-hero__bar"><button class="icon-btn icon-btn--glass" type="button" data-action="back" aria-label="Back">' + icon("chev-l") + '</button><span class="grow"></span></div>' +
-      '<div class="place-hero__title"><a class="crumb crumb--light" href="#/explore?province=' + prov.id + '">' + esc(prov.name) + " · " + esc(prov.region) + "</a><h1>" + esc(c.name) + "</h1><p>" + esc(c.blurb) + "</p></div></div>" +
+      '<div class="place-hero__title"><a class="crumb crumb--light" href="#/explore?province=' + prov.id + '">' + esc(prov.name) + "</a><h1>" + esc(c.name) + "</h1><p>" + esc(c.blurb) + "</p></div></div>" +
       '<div class="place-body">' +
       '<div class="place-stats">' +
       '<div class="stat"><strong class="stat__big">' + all.length + "</strong><small>featured places</small></div>" +
@@ -684,10 +777,8 @@
       "</dl></section>" +
       (p.tips && p.tips.length ? '<section class="psec"><h2>Tips</h2><ul class="tips">' + p.tips.map(function (t) { return "<li>" + icon("sparkle") + esc(t) + "</li>"; }).join("") + "</ul></section>" : "") +
       '<section class="psec"><h2>Location</h2><div class="mini-map" id="place-map"></div></section>' +
-      '<section class="psec"><div class="sec-head"><h2>Reviews</h2><button class="btn btn--sm btn--ghost" type="button" data-action="review" data-id="' + esc(p.id) + '">' + icon("edit") + "Write a review</button></div>" +
-      (reviews.length ? '<div class="reviews">' + reviews.map(function (rv) {
-        return '<article class="review"><header>' + avatar({ name: rv.name }, "sm") + "<div><strong>" + esc(rv.name) + "</strong><small>" + esc(T.date(new Date(rv.at))) + (rv.type && rv.type !== "regular" ? " · " + esc(rv.type) : "") + "</small></div>" + T.stars(rv.rating, 13) + "</header>" + (rv.text ? "<p>" + esc(rv.text) + "</p>" : "") + "</article>";
-      }).join("") + "</div>" : '<p class="muted">No reviews yet. Been here? Share your experience to help other travelers.</p>') + "</section>" +
+      '<section class="psec"><div class="sec-head"><h2>Reviews</h2><button class="btn btn--sm btn--ghost" type="button" data-action="review" data-id="' + esc(p.id) + '">' + icon("chat") + "Write a review</button></div>" +
+      (reviews.length ? '<div class="reviews">' + reviews.map(function (rv) { return reviewHtml(p, rv); }).join("") + "</div>" : '<p class="muted">No reviews yet. Been here? Share your experience and photos to help other travelers.</p>') + "</section>" +
       (nearby.length ? '<section class="psec"><div class="sec-head"><h2>Nearby</h2></div><div class="hscroll">' + nearby.map(function (x) { return placeCard(x.p, x.d); }).join("") + "</div></section>" : "") +
       '<p class="fine">' + (p.source === "osm" ? "Place data © OpenStreetMap contributors." : "Guide score, hours and fees are estimates — check with the venue before you go.") + (p.wiki ? " Photo via Wikipedia / Wikimedia Commons." : "") + "</p>" +
       "</div>";
@@ -716,26 +807,83 @@
     el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
     T.toast(on ? "Saved" : "Removed from saved", on ? "Find it in Profile → Saved places." : "", on ? "heart-fill" : "heart");
   };
+  /* ---------- Reviews: write, edit, delete, with photos ---------- */
+  var rvDraft = { photos: [] };
+  function reviewHtml(p, rv) {
+    var u = T.auth.current();
+    var author = T.auth.profile(rv.uid) || { name: rv.name };
+    var mine = u && rv.uid && rv.uid === u.id;
+    return '<article class="review">' +
+      "<header>" + avatar({ name: author.name || rv.name, photo: author.photo }, "sm") + "<div><strong>" + esc(author.name || rv.name) + "</strong><small>" + esc(T.date(new Date(rv.at))) +
+      (rv.edited ? " · edited" : "") + (rv.type && rv.type !== "regular" ? " · student/senior/PWD" : "") + "</small></div>" + T.stars(rv.rating, 13) + "</header>" +
+      (rv.text ? "<p>" + esc(rv.text) + "</p>" : "") +
+      (rv.photos && rv.photos.length ? '<div class="review__photos">' + rv.photos.map(function (src, i) {
+        return '<button type="button" data-action="review-photo" data-id="' + esc(p.id) + '" data-rid="' + esc(rv.id) + '" data-i="' + i + '"><img src="' + esc(src) + '" alt="Photo by ' + esc(author.name || rv.name) + '" loading="lazy"></button>';
+      }).join("") + "</div>" : "") +
+      (mine ? '<div class="review__own"><button class="btn btn--sm btn--ghost" type="button" data-action="review" data-id="' + esc(p.id) + '" data-rid="' + esc(rv.id) + '">' + icon("edit") + "Edit</button>" +
+        '<button class="btn btn--sm btn--ghost danger" type="button" data-action="review-delete" data-id="' + esc(p.id) + '" data-rid="' + esc(rv.id) + '">' + icon("trash") + "Delete</button></div>" : "") +
+      "</article>";
+  }
+  T.reviewHtml = reviewHtml;
   T.actions.review = function (el) {
     var p = T.places.get(el.dataset.id);
-    T.sheet.open("Review " + p.name, '<form class="form" data-submit="review" data-id="' + esc(p.id) + '">' +
+    var rv = el.dataset.rid ? T.places.review(p.id, el.dataset.rid) : null;
+    var rating = rv ? rv.rating : 5;
+    rvDraft = { photos: rv && rv.photos ? rv.photos.slice() : [] };
+    T.sheet.open((rv ? "Edit your review of " : "Review ") + p.name, '<form class="form" data-submit="review" data-id="' + esc(p.id) + '"' + (rv ? ' data-rid="' + esc(rv.id) + '"' : "") + ">" +
       '<div class="star-input" role="radiogroup" aria-label="Your rating">' + [1, 2, 3, 4, 5].map(function (n) {
-        return '<label><input type="radio" name="rating" value="' + n + '"' + (n === 5 ? " checked" : "") + '><svg aria-hidden="true"><use href="#i-star"/></svg><span class="sr">' + n + " stars</span></label>";
+        return '<label><input type="radio" name="rating" value="' + n + '"' + (n === rating ? " checked" : "") + '><svg aria-hidden="true"><use href="#i-star"/></svg><span class="sr">' + n + " stars</span></label>";
       }).join("") + "</div>" +
-      '<label class="field"><span class="field__label">Your review (optional)</span><textarea class="input" name="text" rows="4" placeholder="What did you like? Any tips for other travelers?"></textarea></label>' +
-      '<button class="btn btn--primary btn--block" type="submit">Post review</button></form>');
+      '<label class="field"><span class="field__label">Your comment</span><textarea class="input" name="text" rows="4" placeholder="What did you like? Any tips for other travelers?">' + esc(rv ? rv.text : "") + "</textarea></label>" +
+      '<div class="field"><span class="field__label">' + icon("camera") + 'Photos <em class="opt-tag">up to 3</em></span><div class="rv-photos" id="rv-photos"></div></div>' +
+      '<p class="form__error" role="alert" hidden></p>' +
+      '<button class="btn btn--primary btn--block" type="submit">' + (rv ? "Save changes" : "Post review") + "</button></form>");
+    renderRvPhotos();
   };
+  function renderRvPhotos() {
+    var box = $("#rv-photos");
+    if (!box) return;
+    box.innerHTML = rvDraft.photos.map(function (src, i) {
+      return '<span class="rv-photo"><img src="' + esc(src) + '" alt=""><button type="button" data-action="rv-photo-remove" data-i="' + i + '" aria-label="Remove photo">' + icon("close") + "</button></span>";
+    }).join("") + (rvDraft.photos.length < 3 ? '<label class="rv-add">' + icon("image") + '<span>Add photo</span><input type="file" accept="image/*" multiple data-input="rv-photo-file" hidden></label>' : "");
+  }
+  T.inputs["rv-photo-file"] = function (el) {
+    var files = Array.prototype.slice.call(el.files || []).slice(0, 3 - rvDraft.photos.length);
+    Promise.all(files.map(function (f) { return T.readImage(f, 900, 0.72); })).then(function (list) {
+      rvDraft.photos = rvDraft.photos.concat(list).slice(0, 3);
+      renderRvPhotos();
+    }).catch(function (e) { T.toast("Photo not added", e.message, "info", "warn"); });
+  };
+  T.actions["rv-photo-remove"] = function (el) { rvDraft.photos.splice(Number(el.dataset.i), 1); renderRvPhotos(); };
   T.submits.review = function (form) {
     var u = T.auth.current();
     var rating = Number((form.querySelector('[name="rating"]:checked') || {}).value || 5);
-    T.places.addReview(form.dataset.id, { rating: rating, text: form.text.value.trim(), name: u ? u.name : "Traveler", type: u ? u.type : "", at: Date.now() });
+    var fields = { rating: rating, text: form.text.value.trim(), photos: rvDraft.photos.slice() };
+    try {
+      if (form.dataset.rid) T.places.updateReview(form.dataset.id, form.dataset.rid, fields);
+      else T.places.addReview(form.dataset.id, Object.assign(fields, { uid: u ? u.id : "", name: u ? u.name : "Traveler", type: u ? u.type : "", at: Date.now() }));
+    } catch (e) { formError(form, e.message); return; }
     T.sheet.close();
-    T.toast("Thanks for your review!", "It helps other travelers.", "star");
+    T.toast(form.dataset.rid ? "Review updated" : "Thanks for your review!", form.dataset.rid ? "Your changes are saved." : "It now shows on this place's page.", "star");
     T.router.resolve();
+  };
+  T.actions["review-delete"] = function (el) {
+    T.sheet.open("Delete your review?", '<p class="muted">Your rating, comment and photos for this place will be removed.</p><div class="result__actions"><button class="btn btn--danger" type="button" data-action="review-delete-yes" data-id="' + esc(el.dataset.id) + '" data-rid="' + esc(el.dataset.rid) + '">' + icon("trash") + 'Delete review</button><button class="btn btn--ghost" type="button" data-action="close-sheet">Cancel</button></div>');
+  };
+  T.actions["review-delete-yes"] = function (el) {
+    T.places.deleteReview(el.dataset.id, el.dataset.rid);
+    T.sheet.close();
+    T.toast("Review deleted", "", "trash");
+    T.router.resolve();
+  };
+  T.actions["review-photo"] = function (el) {
+    var rv = T.places.review(el.dataset.id, el.dataset.rid);
+    if (!rv) return;
+    T.sheet.open("Photo", '<img class="photo-full" src="' + esc(rv.photos[Number(el.dataset.i)]) + '" alt="">', { size: "tall" });
   };
 
   /* ======================================================================
-     PLAN
+     PLAN — one destination or several stops, a day tour or several days
      ====================================================================== */
   function defaultDraft() {
     var here = T.location.get();
@@ -745,87 +893,150 @@
     var useNow = h >= 5 && h < 15;
     return {
       from: { name: here.label.split(",")[0], label: here.label, lat: here.lat, lng: here.lng },
-      to: null, date: T.isoDate(d), time: useNow && dep.getHours() < 15 ? T.pad(dep.getHours()) + ":" + T.pad(dep.getMinutes()) : "07:00",
+      stops: [], date: T.isoDate(d), time: useNow && dep.getHours() < 15 ? T.pad(dep.getHours()) + ":" + T.pad(dep.getMinutes()) : "07:00",
       pax: 1, type: T.traveler().id, ret: true, homeBy: "17:00", activities: true, optionId: null, include: null,
+      days: 1, lodging: "budget",
     };
   }
-  T.views.plan = function (r) {
+  function placeStop(p) { return { name: p.name, label: p.name + (p.area ? ", " + p.area : ""), lat: p.lat, lng: p.lng, placeId: p.id, cityId: p.city }; }
+  function cityStop(c) { return { name: c.name, label: T.dest.label(c), lat: c.lat, lng: c.lng, cityId: c.id }; }
+  function locStop(loc) {
+    return { name: loc.name || loc.label.split(",")[0], label: loc.label, lat: loc.lat, lng: loc.lng, placeId: loc.placeId,
+      cityId: loc.cityId || (loc.placeId && (T.places.get(loc.placeId) || {}).city) || null };
+  }
+  function draft() {
     var dr = T.state.draft = T.state.draft || defaultDraft();
-    if (r.query.to) {
-      var p = T.places.get(r.query.to);
-      if (p && (!dr.to || dr.to.placeId !== p.id)) { dr.to = { name: p.name, label: p.name + ", " + p.area, lat: p.lat, lng: p.lng, placeId: p.id, cityId: p.city }; dr.optionId = null; dr.include = null; T.state.plan = null; }
+    if (!dr.stops) dr.stops = dr.to ? [dr.to] : [];
+    delete dr.to;
+    if (dr.include && Array.isArray(dr.include)) dr.include = { 0: dr.include };
+    dr.days = dr.days || 1; dr.lodging = dr.lodging || "budget";
+    dr.type = (C.travelerAliases || {})[dr.type] || dr.type || "regular";
+    return dr;
+  }
+  function resetPlan() { var dr = draft(); dr.optionId = null; dr.include = null; T.state.plan = null; }
+  T.views.plan = function (r) {
+    var dr = draft();
+    var q = r.query;
+    if (q.to) { var p = T.places.get(q.to); if (p && !(dr.stops.length === 1 && dr.stops[0].placeId === p.id)) { dr.stops = [placeStop(p)]; resetPlan(); } }
+    if (q.city) { var cc = T.dest.city(q.city); if (cc && !(dr.stops.length === 1 && dr.stops[0].cityId === cc.id && !dr.stops[0].placeId)) { dr.stops = [cityStop(cc)]; resetPlan(); } }
+    if (q.stops) {
+      var list = q.stops.split(",").map(function (id) { var pp = T.places.get(id), c2 = T.dest.city(id); return pp ? placeStop(pp) : c2 ? cityStop(c2) : null; }).filter(Boolean);
+      if (list.length) { dr.stops = list; resetPlan(); }
     }
-    if (r.query.city) {
-      var cc = T.dest.city(r.query.city);
-      if (cc && (!dr.to || dr.to.placeId || dr.to.cityId !== cc.id)) { dr.to = { name: cc.name, label: T.dest.label(cc), lat: cc.lat, lng: cc.lng, cityId: cc.id }; dr.optionId = null; dr.include = null; T.state.plan = null; }
-    }
-    var html = pageHead("Plan a trip", { sub: "Routes, fares, discounts & a day plan", sticky: false }) +
+    if (q.days) { dr.days = Math.max(1, Math.min(C.maxDays, Number(q.days) || 1)); if (dr.days > 1 && dr.homeBy === "17:00") dr.homeBy = "18:00"; T.state.plan = null; }
+    // the link's settings are applied once; later changes on this screen win
+    if (Object.keys(q).length) history.replaceState(null, "", "#/plan");
+    var multi = dr.days > 1;
+    var html = pageHead("Plan a trip", { sub: "Routes, fares, discounts & a day-by-day plan", sticky: false }) +
       '<form class="plan-form card" data-submit="plan" novalidate>' +
       '<div class="od">' +
-      '<button class="od__row" type="button" data-action="plan-from"><span class="od__dot od__dot--from"></span><span><small>From</small><strong>' + esc(dr.from.label) + "</strong></span></button>" +
-      '<button class="od__swap icon-btn" type="button" data-action="plan-swap" aria-label="Swap">' + icon("swap") + "</button>" +
-      '<button class="od__row" type="button" data-action="plan-to"><span class="od__dot od__dot--to"></span><span><small>To</small><strong class="' + (dr.to ? "" : "muted") + '">' + esc(dr.to ? dr.to.label : "Choose destination") + "</strong></span></button>" +
+      '<button class="od__row" type="button" data-action="plan-from"><span class="od__dot od__dot--from">' + icon("home") + "</span><span><small>Start from</small><strong>" + esc(dr.from.label) + "</strong></span></button>" +
+      dr.stops.map(function (s, i) {
+        return '<div class="od__stop"><button class="od__row" type="button" data-action="plan-to" data-i="' + i + '"><span class="od__dot od__dot--to">' + (dr.stops.length > 1 ? "<b>" + (i + 1) + "</b>" : icon("pin")) + "</span>" +
+          "<span><small>" + (dr.stops.length > 1 ? "Stop " + (i + 1) : "Destination") + "</small><strong>" + esc(s.label) + "</strong></span></button>" +
+          '<span class="od__tools">' +
+          (dr.stops.length > 1 && i > 0 ? '<button class="icon-btn icon-btn--sm" type="button" data-action="stop-move" data-i="' + i + '" data-d="-1" aria-label="Move up">' + icon("chev-u") + "</button>" : "") +
+          (dr.stops.length > 1 && i < dr.stops.length - 1 ? '<button class="icon-btn icon-btn--sm" type="button" data-action="stop-move" data-i="' + i + '" data-d="1" aria-label="Move down">' + icon("chev-d") + "</button>" : "") +
+          '<button class="icon-btn icon-btn--sm" type="button" data-action="stop-remove" data-i="' + i + '" aria-label="Remove stop">' + icon("close") + "</button></span></div>";
+      }).join("") +
+      (dr.stops.length ? "" : '<button class="od__row" type="button" data-action="plan-to" data-i="0"><span class="od__dot od__dot--to">' + icon("pin") + '</span><span><small>Destination</small><strong class="muted">Choose where to go</strong></span></button>') +
+      (dr.stops.length ? '<button class="od__add" type="button" data-action="plan-add-stop">' + icon("plus") + "<span>Add a stop</span><small>e.g. Intramuros → National Museum</small></button>" : "") +
       "</div>" +
+      '<div class="field"><span class="field__label">' + icon("calendar") + "Trip length</span>" +
+      '<div class="seg" role="radiogroup"><label class="seg__opt"><input type="radio" name="trip-len" value="1"' + (multi ? "" : " checked") + ' data-input="trip-len"><span>' + icon("sun") + 'Day tour</span></label>' +
+      '<label class="seg__opt"><input type="radio" name="trip-len" value="2"' + (multi ? " checked" : "") + ' data-input="trip-len"><span>' + icon("bed") + "Multi-day</span></label></div></div>" +
+      (multi ? '<div class="multi card-in">' +
+        '<div class="field"><span class="field__label">' + icon("calendar") + 'Number of days</span><div class="stepper"><button type="button" data-action="days" data-d="-1" aria-label="Fewer days">' + icon("minus") + '</button><output id="days">' + dr.days + " days · " + (dr.days - 1) + " night" + (dr.days > 2 ? "s" : "") + '</output><button type="button" data-action="days" data-d="1" aria-label="More days">' + icon("plus") + "</button></div></div>" +
+        '<div class="field"><span class="field__label">' + icon("bed") + "Overnight stay</span>" +
+        '<div class="seg seg--3" role="radiogroup">' + C.lodging.map(function (l) {
+          return '<label class="seg__opt"><input type="radio" name="lodging" value="' + l.id + '"' + (dr.lodging === l.id ? " checked" : "") + ' data-input="plan-field"><span><b>' + esc(l.label) + "</b><small>" + T.peso(l.room) + "/night</small></span></label>";
+        }).join("") + '</div><p class="fine">Each night you stay near where that day ends. Room price is for 2 people and goes into your budget. On the last day, “End each day at” is when you leave for home.</p></div></div>' : "") +
       '<div class="grid2">' +
-      '<label class="field"><span class="field__label">' + icon("calendar") + 'Date</span><input class="input" type="date" name="date" value="' + dr.date + '" min="' + T.isoDate(new Date()) + '" data-input="plan-field"></label>' +
-      '<label class="field"><span class="field__label">' + icon("clock") + 'Departure</span><input class="input" type="time" name="time" value="' + dr.time + '" data-input="plan-field"></label>' +
+      '<label class="field"><span class="field__label">' + icon("calendar") + (multi ? "Start date" : "Date") + '</span><input class="input" type="date" name="date" value="' + dr.date + '" min="' + T.isoDate(new Date()) + '" data-input="plan-field"></label>' +
+      '<label class="field"><span class="field__label">' + icon("home") + 'Leave home at</span><input class="input" type="time" name="time" value="' + dr.time + '" data-input="plan-field"></label>' +
       "</div>" +
-      '<div class="field"><span class="field__label">' + icon("id") + "Traveler type</span>" + travelerSeg(dr.type, "plan-type") + "</div>" +
       '<div class="grid2">' +
       '<div class="field"><span class="field__label">' + icon("users") + 'Travelers</span><div class="stepper"><button type="button" data-action="pax" data-d="-1" aria-label="Fewer">' + icon("minus") + '</button><output id="pax">' + dr.pax + '</output><button type="button" data-action="pax" data-d="1" aria-label="More">' + icon("plus") + "</button></div></div>" +
-      '<label class="field"><span class="field__label" id="leave-label">' + icon("home") + (dr.ret ? "Leave for home at" : "End my day at") + '</span><input class="input" type="time" name="homeBy" value="' + dr.homeBy + '" data-input="plan-field"></label>' +
+      '<label class="field"><span class="field__label" id="leave-label">' + icon("clock") + leaveLabel(dr) + '</span><input class="input" type="time" name="homeBy" value="' + dr.homeBy + '" data-input="plan-field"></label>' +
       "</div>" +
-      switchRow("ret", "Include return trip", "Plan the ride back home", dr.ret) +
-      switchRow("activities", "Plan my day there", "Fill my time with things to do, a lunch stop and entrance fees", dr.activities) +
-      '<button class="btn btn--primary btn--block btn--lg" type="submit">' + icon("sparkle") + "Plan my trip</button>" +
+      '<div class="field"><span class="field__label">' + icon("id") + 'Fare discount <em class="opt-tag">optional</em></span>' + travelerSeg(dr.type, "plan-type") + "</div>" +
+      switchRow("ret", "Include the trip home", "Plan the ride back home at the end", dr.ret) +
+      switchRow("activities", "Plan things to do", "Fill each day with places, a lunch stop and entrance fees", dr.activities) +
+      '<button class="btn btn--primary btn--block btn--lg" type="submit">' + icon("sparkle") + (multi ? "Plan my " + dr.days + "-day trip" : "Plan my trip") + "</button>" +
       "</form>" +
       '<div id="plan-out"></div>';
     mount(html, { nav: "plan" });
     if (T.state.plan) renderPlan(T.state.plan, false);
   };
+  function leaveLabel(dr) { return dr.days > 1 ? "End each day at" : dr.ret ? "Leave for home at" : "End my day at"; }
   function switchRow(name, title, sub, on) {
     return '<label class="switch"><span><strong>' + title + "</strong><small>" + sub + '</small></span><input type="checkbox" name="' + name + '"' + (on ? " checked" : "") + ' data-input="plan-field"><span class="switch__ui"></span></label>';
   }
   T.inputs["plan-field"] = function (el) {
-    var dr = T.state.draft;
+    var dr = draft();
     if (el.type === "checkbox") dr[el.name] = el.checked; else dr[el.name] = el.value;
-    if (el.name === "ret") { var lb = $("#leave-label"); if (lb) lb.innerHTML = icon("home") + (el.checked ? "Leave for home at" : "End my day at"); }
+    if (el.name === "ret") { var lb = $("#leave-label"); if (lb) lb.innerHTML = icon("clock") + leaveLabel(dr); }
+    if (el.name === "time" || el.name === "date") dr.optionId = null;
+  };
+  T.inputs["trip-len"] = function (el) {
+    var dr = draft();
+    dr.days = el.value === "1" ? 1 : Math.max(2, dr.days > 1 ? dr.days : 2);
+    if (dr.days > 1 && dr.homeBy === "17:00") dr.homeBy = "18:00";
+    dr.include = null; T.state.plan = null;
+    T.router.resolve();
+  };
+  T.actions.days = function (el) {
+    var dr = draft();
+    dr.days = Math.max(2, Math.min(C.maxDays, dr.days + Number(el.dataset.d)));
+    dr.include = null; T.state.plan = null;
+    $("#days").textContent = dr.days + " days · " + (dr.days - 1) + " night" + (dr.days > 2 ? "s" : "");
+    var b = $('.plan-form [type="submit"]'); if (b) b.innerHTML = icon("sparkle") + "Plan my " + dr.days + "-day trip";
   };
   T.actions.pax = function (el) {
-    var dr = T.state.draft;
+    var dr = draft();
     dr.pax = Math.max(1, Math.min(12, dr.pax + Number(el.dataset.d)));
     $("#pax").textContent = dr.pax;
   };
   T.actions["plan-from"] = function () {
-    T.pickLocation({ mode: "origin", onPick: function (loc) { T.state.draft.from = { name: loc.name || loc.label.split(",")[0], label: loc.label, lat: loc.lat, lng: loc.lng, placeId: loc.placeId }; T.state.plan = null; T.router.resolve(); } });
+    T.pickLocation({ mode: "origin", onPick: function (loc) { draft().from = { name: loc.name || loc.label.split(",")[0], label: loc.label, lat: loc.lat, lng: loc.lng, placeId: loc.placeId }; T.state.plan = null; T.router.resolve(); } });
   };
-  T.actions["plan-to"] = function () {
-    T.pickLocation({ mode: "destination", onPick: function (loc) { T.state.draft.to = { name: loc.name || loc.label.split(",")[0], label: loc.label, lat: loc.lat, lng: loc.lng, placeId: loc.placeId, cityId: loc.cityId || (loc.placeId && (T.places.get(loc.placeId) || {}).city) || null }; T.state.draft.include = null; T.state.plan = null; T.router.resolve(); } });
+  T.actions["plan-to"] = function (el) {
+    var i = Number(el && el.dataset.i || 0);
+    T.pickLocation({ mode: "destination", onPick: function (loc) { var dr = draft(); dr.stops[i] = locStop(loc); resetPlan(); T.router.resolve(); } });
   };
-  T.actions["plan-swap"] = function () {
-    var dr = T.state.draft;
-    if (!dr.to) return;
-    var a = dr.from; dr.from = dr.to; dr.to = a; dr.include = null; T.state.plan = null;
-    T.router.resolve();
+  T.actions["plan-add-stop"] = function () {
+    T.pickLocation({ mode: "destination", title: "Add a stop", onPick: function (loc) {
+      var dr = draft(), s = locStop(loc);
+      if (dr.stops.some(function (x) { return T.geo.distance(x, s) < 0.05; })) { T.toast("Already in your trip", s.name, "info", "warn"); return; }
+      dr.stops.push(s); resetPlan(); T.router.resolve();
+      T.toast("Stop added", s.name + " is stop " + dr.stops.length + ".", "plus");
+    } });
+  };
+  T.actions["stop-remove"] = function (el) { var dr = draft(); dr.stops.splice(Number(el.dataset.i), 1); resetPlan(); T.router.resolve(); };
+  T.actions["stop-move"] = function (el) {
+    var dr = draft(), i = Number(el.dataset.i), j = i + Number(el.dataset.d);
+    if (j < 0 || j >= dr.stops.length) return;
+    var x = dr.stops[i]; dr.stops[i] = dr.stops[j]; dr.stops[j] = x;
+    resetPlan(); T.router.resolve();
   };
   function draftDepart(dr) {
     var p = dr.date.split("-"), t = dr.time.split(":");
     return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]), Number(t[0]), Number(t[1]));
   }
   function buildFromDraft(weather, includeOverride) {
-    var dr = T.state.draft;
+    var dr = draft();
     var trav = C.travelerTypes.filter(function (t) { return t.id === dr.type; })[0] || T.traveler();
-    return T.planner.build({ from: dr.from, to: dr.to, depart: draftDepart(dr), traveler: trav, pax: dr.pax, ret: dr.ret, homeBy: dr.homeBy,
-      activities: dr.activities, optionId: dr.optionId, include: includeOverride !== undefined ? includeOverride : dr.include, weather: weather });
+    return T.planner.build({ from: dr.from, stops: dr.stops, depart: draftDepart(dr), traveler: trav, pax: dr.pax, ret: dr.ret, homeBy: dr.homeBy,
+      days: dr.days, lodging: dr.lodging, activities: dr.activities, optionId: dr.optionId, include: includeOverride !== undefined ? includeOverride : dr.include, weather: weather });
   }
-  T.submits.plan = function (form) {
-    var dr = T.state.draft;
-    if (!dr.to) { T.actions["plan-to"](); return; }
-    if (T.geo.distance(dr.from, dr.to) < 0.05) { T.toast("Same place", "Pick a destination different from your starting point.", "info", "warn"); return; }
+  T.submits.plan = function () {
+    var dr = draft();
+    if (!dr.stops.length) { T.actions["plan-to"]({ dataset: { i: 0 } }); return; }
+    if (T.geo.distance(dr.from, dr.stops[0]) < 0.05) { T.toast("Same place", "Pick a destination different from your starting point.", "info", "warn"); return; }
     var out = $("#plan-out");
-    out.innerHTML = '<div class="planning">' + '<span class="road-loader road-loader--lg"><i></i></span><strong>Planning your trip…</strong><span class="muted">Checking routes, fares and things to do</span></div>';
+    out.innerHTML = '<div class="planning">' + '<span class="road-loader road-loader--lg"><i></i></span><strong>Planning your trip…</strong><span class="muted">Checking routes, fares and things to do' + (dr.days > 1 ? " for " + dr.days + " days" : "") + "</span></div>";
     out.scrollIntoView({ behavior: T.reduceMotion ? "auto" : "smooth", block: "start" });
-    var wxP = T.weather.get(dr.to).catch(function () { return null; });
+    var wxP = T.weather.get(dr.stops[0]).catch(function () { return null; });
     var timer = new Promise(function (r) { setTimeout(r, 900); });
     Promise.all([wxP, timer]).then(function (res) {
       T.state.weather = res[0];
@@ -834,26 +1045,23 @@
     });
   };
   T.actions["plan-option"] = function (el) {
-    T.state.draft.optionId = el.dataset.id;
+    draft().optionId = el.dataset.id;
     T.state.plan = buildFromDraft(T.state.weather);
     renderPlan(T.state.plan, false);
-  };
-  T.actions["plan-toggle-stop"] = function (el) {
-    var plan = T.state.plan;
-    var pool = plan.day.pool.map(function (p) { return p.id; });
-    var cur = T.state.draft.include || plan.day.steps.filter(function (s) { return s.kind === "visit"; }).map(function (s) { return s.place.id; });
-    var id = el.dataset.id;
-    var i = cur.indexOf(id);
-    if (i > -1) cur.splice(i, 1); else cur.push(id);
-    T.state.draft.include = cur.filter(function (x) { return pool.indexOf(x) > -1; });
-    T.state.plan = buildFromDraft(T.state.weather);
-    renderPlan(T.state.plan, false);
+    // done choosing — jump to the itinerary below
+    var it = $("#itinerary");
+    if (it) setTimeout(function () { it.scrollIntoView({ behavior: T.reduceMotion ? "auto" : "smooth", block: "start" }); }, 60);
+    T.toast("Route chosen", T.state.plan.option.title + " · " + T.peso(T.state.plan.option.fare) + " per person", "check");
   };
 
+  /* ---------- timelines ---------- */
   var modeIcon = { walk: "walk", tricycle: "tricycle", jeep: "jeep", bus: "bus", lrt: "train", grab: "car", car: "car" };
+  T.modeIcon = modeIcon;
+  // opts: startLabel, startTime, toName ("Arrive at X"), endLabel, check, done, prefix
   function legsTimeline(o, opts) {
     opts = opts || {};
-    return '<ol class="tl">' + o.legs.map(function (l, i) {
+    var start = opts.startLabel ? '<li class="tl__item tl--start"><span class="tl__time">' + T.time(new Date(o.depart)) + '</span><span class="tl__ic">' + icon(opts.startIcon || "home") + '</span><div class="tl__body"><strong>' + esc(opts.startLabel) + "</strong>" + (opts.startSub ? "<p>" + esc(opts.startSub) + "</p>" : "") + "</div></li>" : "";
+    return '<ol class="tl">' + start + o.legs.map(function (l, i) {
       var key = (opts.prefix || "o") + i;
       var done = opts.done && opts.done[key];
       return '<li class="tl__item tl--' + l.mode + (done ? " is-done" : "") + '">' +
@@ -861,6 +1069,7 @@
         '<span class="tl__ic">' + icon(modeIcon[l.mode]) + "</span>" +
         '<div class="tl__body"><strong>' + esc(l.text) + "</strong>" +
         (l.board ? '<p class="tl__board">' + icon("pin") + esc(l.board) + "</p>" : "") +
+        (l.mode !== "walk" && l.mode !== "car" && l.to ? '<p class="tl__off">' + icon("flag") + "<span>Get off at <b>" + esc(l.to.name) + "</b></span></p>" : "") +
         "<p>" + esc(T.planner.legName(l)) + " · " + T.dur(l.minutes) + (l.km > 0.2 ? " · " + T.km(l.km) : "") +
         (l.mode === "walk" ? "" : " · <b>" + (l.perCar ? T.peso(l.fareReg) + " per car" : l.fare ? T.peso(l.fare) : "—") + "</b>" + (l.saved > 0 ? ' <s class="muted">' + T.peso(l.fareReg) + "</s>" : "")) +
         (l.rush ? ' <span class="pill pill--warn">rush hour</span>' : "") + "</p>" +
@@ -869,125 +1078,186 @@
         (opts.check ? '<label class="tl__check"><input type="checkbox" data-input="trip-check" data-key="' + key + '"' + (done ? " checked" : "") + "><span>Done</span></label>" : "") +
         "</div></li>";
     }).join("") +
-      '<li class="tl__item tl--arrive"><span class="tl__time">' + T.time(new Date(o.arrive)) + '</span><span class="tl__ic">' + icon("pin") + '</span><div class="tl__body"><strong>Arrive at ' + esc(opts.toName || "destination") + "</strong></div></li></ol>";
+      '<li class="tl__item tl--arrive"><span class="tl__time">' + T.time(new Date(o.arrive)) + '</span><span class="tl__ic">' + icon(opts.endIcon || "pin") + '</span><div class="tl__body"><strong>' + esc(opts.endLabel || "Arrive at " + (opts.toName || "destination")) + "</strong></div></li></ol>";
   }
   function moveText(mv) {
     if (!mv || mv.minutes < 1) return "";
     if (mv.mode === "walk") return mv.minutes + " min walk";
     return T.planner.modeName[mv.mode] + " " + mv.minutes + " min · " + T.peso(mv.fare);
   }
+  function stepIcon(s) {
+    if (s.kind === "meal") return "utensils";
+    if (s.kind === "free") return "sparkle";
+    if (s.kind === "stay") return "bed";
+    if (s.kind === "ride") { var l = s.ride.legs.filter(function (x) { return x.mode !== "walk"; })[0] || s.ride.legs[0]; return l ? modeIcon[l.mode] : "route"; }
+    return s.place ? T.cat(s.place.cat).icon : "pin";
+  }
   function dayTimeline(day, opts) {
     opts = opts || {};
     return '<ol class="tl tl--day">' + day.steps.map(function (s, i) {
-      var key = "d" + i, done = opts.done && opts.done[key];
+      var key = T.planner.stepKey(day.index, i);
+      var keys = s.kind === "ride" ? s.ride.legs.map(function (l, j) { return key + "l" + j; }) : [key];
+      var done = opts.done && keys.every(function (k) { return opts.done[k]; });
       var p = s.place;
-      var ic = s.kind === "meal" ? "utensils" : s.kind === "free" ? "sparkle" : T.cat(p.cat).icon;
       var mv = moveText(s.move);
+      var dur = Math.round((new Date(s.end) - new Date(s.start)) / 60000);
       var money = s.kind === "visit" ? (s.fee ? "<b>" + T.peso(s.fee) + "</b>" + (s.feeReg > s.fee ? ' <s class="muted">' + T.peso(s.feeReg) + "</s>" : "") : "Free")
-        : s.kind === "meal" ? "about " + T.peso(s.cost) + "/person" : "";
+        : s.kind === "meal" ? "about " + T.peso(s.cost) + "/person" : s.kind === "ride" ? "<b>" + T.peso(s.fare) + "</b>/person" : s.kind === "stay" ? "<b>" + T.peso(s.cost) + "</b>/person" : "";
+      var body;
+      if (s.kind === "ride") {
+        body = "<strong>" + esc(s.name) + "</strong><p>" + T.time(new Date(s.start)) + " – " + T.time(new Date(s.end)) + " · " + T.dur(dur) + " · " + money + "</p>" +
+          '<ul class="tl__legs">' + s.ride.legs.map(function (l) {
+            return "<li>" + icon(modeIcon[l.mode]) + "<span><b>" + T.time(new Date(l.start)) + "</b> " + esc(l.text) + (l.mode !== "walk" && l.fare ? " · " + T.peso(l.fare) : "") +
+              (l.board ? '<small>' + esc(l.board) + "</small>" : "") + (l.mode !== "walk" && l.mode !== "car" ? "<small>Get off at " + esc(l.to.name) + "</small>" : "") + "</span></li>";
+          }).join("") + "</ul>";
+      } else if (s.kind === "stay") {
+        body = "<strong>" + esc(s.name) + "</strong><p>Check in around " + T.time(new Date(s.start)) + " · " + money + (s.rooms > 1 ? " · " + s.rooms + " rooms" : "") + "</p>";
+      } else {
+        body = (p ? '<a class="tl__name" href="#/place/' + encodeURIComponent(p.id) + '">' + esc(s.name) + "</a>" : "<strong>" + esc(s.name) + "</strong>") +
+          "<p>" + T.time(new Date(s.start)) + " – " + T.time(new Date(s.end)) + " · " + T.dur(dur) + (money ? " · " + money : "") + "</p>" +
+          (mv ? '<p class="tl__move">' + icon(s.move.mode === "walk" ? "walk" : modeIcon[s.move.mode]) + "Getting there: " + esc(mv) + "</p>" : "");
+      }
       return '<li class="tl__item tl--' + s.kind + (done ? " is-done" : "") + '">' +
         '<span class="tl__time">' + T.time(new Date(s.start)) + "</span>" +
-        '<span class="tl__ic">' + icon(ic) + "</span>" +
-        '<div class="tl__body">' + (p ? '<a class="tl__name" href="#/place/' + encodeURIComponent(p.id) + '">' + esc(s.name) + "</a>" : "<strong>" + esc(s.name) + "</strong>") +
-        "<p>" + T.time(new Date(s.start)) + " – " + T.time(new Date(s.end)) + " · " + T.dur(Math.round((new Date(s.end) - new Date(s.start)) / 60000)) + (money ? " · " + money : "") + "</p>" +
-        (mv ? '<p class="tl__move">' + icon(s.move.mode === "walk" ? "walk" : modeIcon[s.move.mode]) + "Getting there: " + esc(mv) + "</p>" : "") +
+        '<span class="tl__ic">' + icon(stepIcon(s)) + "</span>" +
+        '<div class="tl__body">' + body +
         (s.note ? '<p class="tl__tip">' + esc(s.note) + "</p>" : "") +
         (s.tip ? '<p class="tl__tip">' + esc(s.tip) + "</p>" : "") +
-        (opts.check && s.kind !== "free" ? '<label class="tl__check"><input type="checkbox" data-input="trip-check" data-key="' + key + '"' + (done ? " checked" : "") + "><span>Done</span></label>" : "") +
+        (opts.check && s.kind !== "free" ? '<label class="tl__check"><input type="checkbox" data-input="trip-check" data-key="' + keys.join(",") + '"' + (done ? " checked" : "") + "><span>Done</span></label>" : "") +
         "</div></li>";
     }).join("") + "</ol>";
   }
+  T.dayTimeline = dayTimeline;
+
   /* time-fit meter: too many / just right / free time */
-  function fitBlock(fit, leaveAt, ret) {
+  function fitBlock(fit, endAt, endVerb, dayIdx) {
     if (!fit) return "";
     var pct = fit.available ? Math.min(100, Math.round(fit.used / fit.available * 100)) : 0;
-    var leave = T.time(new Date(leaveAt)), verb = ret ? "leave for home at " : "end your day at ";
+    var leave = T.time(new Date(endAt)), verb = endVerb + " " + leave;
     var title, msg, ic;
     if (fit.status === "over") {
       ic = "info"; title = "Too many stops";
-      msg = fit.notFit.length + " stop" + (fit.notFit.length > 1 ? "s" : "") + " won't fit before you " + verb + leave + " (about " + T.dur(fit.overBy) + " more needed): " +
+      msg = fit.notFit.length + " place" + (fit.notFit.length > 1 ? "s" : "") + " won't fit before you " + verb + " (about " + T.dur(fit.overBy) + " more needed): " +
         fit.notFit.map(function (p) { return esc(p.name) + " (" + T.dur(p.visit || 45) + ")"; }).join(", ") + ". Remove some, leave home earlier, or stay later.";
     } else if (fit.status === "right") {
       ic = "check"; title = "Just right";
-      msg = "Your stops fill the day nicely until you " + verb + leave + ".";
+      msg = "Your places fill the day nicely until you " + verb + ".";
     } else {
       ic = "clock"; title = T.dur(fit.free) + " free";
-      msg = "You still have " + T.dur(fit.free) + " before you " + verb + leave + "." + (fit.suggestions.length ? " Add one of these:" : " Enjoy some free time!");
+      msg = "You still have " + T.dur(fit.free) + " before you " + verb + "." + (fit.suggestions.length ? " Add one of these:" : " Enjoy some free time!");
     }
     return '<div class="fit fit--' + fit.status + '"><div class="fit__top"><strong>' + icon(ic) + title + "</strong><span>" + T.dur(fit.used) + " of " + T.dur(fit.available) + " planned</span></div>" +
       '<div class="fit__bar"><span style="width:' + (fit.status === "over" ? 100 : pct) + '%"></span></div><p>' + msg + "</p>" +
       (fit.status === "free" && fit.suggestions.length ? '<div class="stop-chips">' + fit.suggestions.map(function (p) {
-        return '<button class="chip" type="button" data-action="add-stop" data-id="' + esc(p.id) + '">' + icon("plus") + esc(p.name) + " · " + T.dur(p.visit || 45) + "</button>";
+        return '<button class="chip" type="button" data-action="add-stop" data-day="' + (dayIdx || 0) + '" data-id="' + esc(p.id) + '">' + icon("plus") + esc(p.name) + " · " + T.dur(p.visit || 45) + "</button>";
       }).join("") + "</div>" : "") + "</div>";
   }
-  function currentStops(plan) { return plan.day.steps.filter(function (s) { return s.kind === "visit"; }).map(function (s) { return s.place.id; }); }
+  function dayVisits(plan, d) { return plan.days[d].steps.filter(function (s) { return s.kind === "visit"; }).map(function (s) { return s.place.id; }); }
+  function endVerb(plan, d) { return d === plan.days.length - 1 ? (plan.ret ? "leave for home at" : "end your day at") : "check in for the night at"; }
+  function withDay(include, d, ids) { var o = Object.assign({}, include || {}); if (ids) o[d] = ids; else delete o[d]; return Object.keys(o).length ? o : null; }
   T.actions["add-stop"] = function (el) {
-    var ids = currentStops(T.state.plan).concat([el.dataset.id]);
-    T.state.draft.include = ids;
+    var d = Number(el.dataset.day || 0), dr = draft();
+    dr.include = withDay(dr.include, d, dayVisits(T.state.plan, d).concat([el.dataset.id]));
     T.state.plan = buildFromDraft(T.state.weather);
     renderPlan(T.state.plan, false);
     T.toast("Added to your day", T.places.get(el.dataset.id).name, "plus");
   };
-  T.actions["edit-stops"] = function () {
-    var plan = T.state.plan, sel = currentStops(plan);
-    var dep = new Date(plan.option.depart), days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    var pool = plan.day.pool.slice().sort(function (a, b) { return (sel.indexOf(b.id) > -1) - (sel.indexOf(a.id) > -1) || (T.places.score(b) || 0) - (T.places.score(a) || 0); });
-    var body = T.sheet.open("Choose your stops",
-      '<p class="muted">Tick what you want to see. We order them, check opening hours, add lunch, and tell you if everything fits before ' + T.time(new Date(plan.leaveAt)) + ".</p>" +
-      '<div id="stops-fit"></div>' +
-      '<div class="stops-list">' + pool.map(function (p) {
-        var closed = p.closed && p.closed.indexOf(dep.getDay()) > -1;
-        var fee = T.places.fee(p, plan.traveler);
-        var far = T.geo.distance(plan.to, p);
-        return '<label class="stop-row' + (closed ? " is-closed" : "") + '"><input type="checkbox" data-input="stop-pick" value="' + esc(p.id) + '"' + (sel.indexOf(p.id) > -1 ? " checked" : "") + (closed ? " disabled" : "") + ">" +
-          '<span class="ph stop-row__ph" data-photo="' + esc(p.id) + '">' + T.art(p) + "</span>" +
-          '<span class="stop-row__body"><strong>' + esc(p.name) + "</strong><small>" + esc(T.cat(p.cat).short) + " · " + T.dur(p.visit || 45) + " · " + (fee.amount ? T.peso(fee.amount) : fee.amount === 0 ? "Free" : "Fee varies") + " · " + T.km(far) + "</small>" +
-          "<small>" + (closed ? "Closed on " + days[dep.getDay()] + "s" : esc(T.places.hoursText(p))) + "</small></span>" +
-          '<span class="stop-row__check">' + icon("check") + "</span></label>";
-      }).join("") + "</div>" +
+
+  /* ---------- Edit places for one day: pick, then arrange the order ---------- */
+  var edit = { day: 0, sel: [] };
+  T.actions["edit-stops"] = function (el) {
+    var plan = T.state.plan, d = Number(el.dataset.day || 0);
+    edit.day = d; edit.sel = dayVisits(plan, d);
+    var day = plan.days[d];
+    var body = T.sheet.open(plan.days.length > 1 ? "Day " + (d + 1) + " — your places" : "Your places",
+      '<p class="muted">Tick places to add them. Use the arrows to put them in the order you want — we follow your order, check opening hours, add lunch and tell you if it all fits before ' + T.time(new Date(day.end)) + ".</p>" +
+      '<div id="stops-fit"></div><div id="stops-order"></div>' +
+      '<p class="label">Add places</p><div class="stops-list" id="stops-pool"></div>' +
       '<div class="sheet-foot"><button class="btn btn--ghost" type="button" data-action="stops-auto">' + icon("sparkle") + 'Auto-fill</button><button class="btn btn--primary" type="button" data-action="stops-apply">Apply</button></div>', { size: "tall" });
+    renderEdit();
     T.photos.hydrate(body);
-    updateStopsFit();
   };
-  function pickedStops() { return $$('[data-input="stop-pick"]:checked').map(function (i) { return i.value; }); }
+  function editPool() {
+    var plan = T.state.plan, day = plan.days[edit.day];
+    var pool = (day.pool || []).slice();
+    edit.sel.forEach(function (id) { var p = T.places.get(id); if (p && pool.indexOf(p) < 0) pool.unshift(p); });
+    return pool;
+  }
+  function renderEdit() {
+    var plan = T.state.plan, day = plan.days[edit.day];
+    var dep = new Date(day.date), days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    var ord = $("#stops-order"), poolBox = $("#stops-pool");
+    if (!ord) return;
+    ord.innerHTML = '<p class="label">Your order · ' + edit.sel.length + " place" + (edit.sel.length === 1 ? "" : "s") + "</p>" + (edit.sel.length ? '<ol class="order-list">' + edit.sel.map(function (id, i) {
+      var p = T.places.get(id);
+      return '<li class="order-row"><span class="order-row__n">' + (i + 1) + '</span><span class="ph order-row__ph" data-photo="' + esc(p.id) + '">' + T.art(p) + "</span>" +
+        '<span class="order-row__body"><strong>' + esc(p.name) + "</strong><small>" + esc(T.cat(p.cat).short) + " · " + T.dur(p.visit || 45) + "</small></span>" +
+        '<span class="order-row__tools"><button class="icon-btn icon-btn--sm" type="button" data-action="order-move" data-i="' + i + '" data-d="-1" aria-label="Move up"' + (i ? "" : " disabled") + ">" + icon("chev-u") + "</button>" +
+        '<button class="icon-btn icon-btn--sm" type="button" data-action="order-move" data-i="' + i + '" data-d="1" aria-label="Move down"' + (i < edit.sel.length - 1 ? "" : " disabled") + ">" + icon("chev-d") + "</button>" +
+        '<button class="icon-btn icon-btn--sm" type="button" data-action="order-remove" data-i="' + i + '" aria-label="Remove">' + icon("close") + "</button></span></li>";
+    }).join("") + "</ol>" : '<p class="muted">No places yet — tick some below.</p>');
+    var rest = editPool().filter(function (p) { return edit.sel.indexOf(p.id) < 0; })
+      .sort(function (a, b) { return (T.places.score(b) || 0) - (T.places.score(a) || 0); });
+    poolBox.innerHTML = rest.length ? rest.map(function (p) {
+      var closed = p.closed && p.closed.indexOf(dep.getDay()) > -1;
+      var fee = T.places.fee(p, plan.traveler);
+      return '<label class="stop-row' + (closed ? " is-closed" : "") + '"><input type="checkbox" data-input="stop-pick" value="' + esc(p.id) + '"' + (closed ? " disabled" : "") + ">" +
+        '<span class="ph stop-row__ph" data-photo="' + esc(p.id) + '">' + T.art(p) + "</span>" +
+        '<span class="stop-row__body"><strong>' + esc(p.name) + "</strong><small>" + esc(T.cat(p.cat).short) + " · " + T.dur(p.visit || 45) + " · " + (fee.amount ? T.peso(fee.amount) : fee.amount === 0 ? "Free" : "Fee varies") + "</small>" +
+        "<small>" + (closed ? "Closed on " + days[dep.getDay()] + "s" : esc(T.places.hoursText(p))) + "</small></span>" +
+        '<span class="stop-row__check">' + icon("plus") + "</span></label>";
+    }).join("") : '<p class="muted">Every place nearby is already in your trip.</p>';
+    T.photos.hydrate(ord); T.photos.hydrate(poolBox);
+    updateStopsFit();
+  }
   function updateStopsFit() {
     var box = $("#stops-fit");
     if (!box) return;
-    var ids = pickedStops();
-    var trial = buildFromDraft(T.state.weather, ids);
-    box.innerHTML = '<p class="label">' + ids.length + " selected</p>" + fitBlock(trial.day.fit, trial.leaveAt, trial.ret).replace(/data-action="add-stop"/g, 'data-action="pick-stop-chip"');
+    var trial = buildFromDraft(T.state.weather, withDay(draft().include, edit.day, edit.sel.slice()));
+    var td = trial.days[edit.day];
+    box.innerHTML = fitBlock(td.fit, td.end, endVerb(trial, edit.day), edit.day).replace(/data-action="add-stop"/g, 'data-action="pick-stop-chip"');
   }
-  T.inputs["stop-pick"] = function () { updateStopsFit(); };
-  T.actions["pick-stop-chip"] = function (el) {
-    var cb = $('[data-input="stop-pick"][value="' + el.dataset.id + '"]');
-    if (cb) { cb.checked = true; cb.closest(".stop-row").scrollIntoView({ block: "nearest" }); }
-    updateStopsFit();
+  T.inputs["stop-pick"] = function (el) { if (el.checked && edit.sel.indexOf(el.value) < 0) edit.sel.push(el.value); renderEdit(); };
+  T.actions["pick-stop-chip"] = function (el) { if (edit.sel.indexOf(el.dataset.id) < 0) edit.sel.push(el.dataset.id); renderEdit(); };
+  T.actions["order-move"] = function (el) {
+    var i = Number(el.dataset.i), j = i + Number(el.dataset.d);
+    if (j < 0 || j >= edit.sel.length) return;
+    var x = edit.sel[i]; edit.sel[i] = edit.sel[j]; edit.sel[j] = x;
+    renderEdit();
   };
+  T.actions["order-remove"] = function (el) { edit.sel.splice(Number(el.dataset.i), 1); renderEdit(); };
   T.actions["stops-apply"] = function () {
-    T.state.draft.include = pickedStops();
+    var dr = draft();
+    dr.include = withDay(dr.include, edit.day, edit.sel.slice());
     T.state.plan = buildFromDraft(T.state.weather);
     T.sheet.close();
     renderPlan(T.state.plan, false);
-    var f = T.state.plan.day.fit;
-    T.toast(f.status === "over" ? "Too many stops" : f.status === "right" ? "Just right!" : "Plan updated", f.status === "over" ? f.notFit.length + " won't fit — see the list." : "", f.status === "over" ? "info" : "check", f.status === "over" ? "warn" : "");
+    var f = T.state.plan.days[edit.day].fit;
+    if (f) T.toast(f.status === "over" ? "Too many places" : f.status === "right" ? "Just right!" : "Plan updated", f.status === "over" ? f.notFit.length + " won't fit — see the list." : "Your order is saved.", f.status === "over" ? "info" : "check", f.status === "over" ? "warn" : "");
   };
   T.actions["stops-auto"] = function () {
-    T.state.draft.include = null;
+    var dr = draft();
+    dr.include = withDay(dr.include, edit.day, null);
     T.state.plan = buildFromDraft(T.state.weather);
     T.sheet.close();
     renderPlan(T.state.plan, false);
-    T.toast("Auto-filled your day", "We picked the best-rated spots that fit.", "sparkle");
+    T.toast("Auto-filled your day", "We picked the best-rated places that fit.", "sparkle");
   };
+
   function budgetCard(plan) {
     var b = plan.budget;
-    var savedFares = plan.option.legs.reduce(function (s, l) { return s + (l.saved || 0); }, 0) + (plan.back ? plan.back.legs.reduce(function (s, l) { return s + (l.saved || 0); }, 0) : 0);
-    var saved = savedFares + (plan.fees.saved || 0);
+    var legs = plan.option.legs.concat(plan.back ? plan.back.legs : []);
+    plan.days.forEach(function (d) { d.steps.forEach(function (s) { if (s.kind === "ride") legs = legs.concat(s.ride.legs); }); });
+    var saved = legs.reduce(function (s, l) { return s + (l.saved || 0); }, 0) + (plan.fees.saved || 0);
+    var row = function (ic, label, v) { return "<div><span>" + icon(ic) + label + "</span><b>" + T.peso(v) + "</b></div>"; };
     return '<div class="budget">' +
-      "<div><span>Fares" + (plan.ret ? " (round trip)" : "") + (b.moves ? " incl. rides between stops" : "") + "</span><b>" + T.peso(b.fares) + "</b></div>" +
-      (plan.activitiesOn ? "<div><span>Entrance fees</span><b>" + T.peso(b.fees) + "</b></div><div><span>Food (estimate)</span><b>" + T.peso(b.meals) + "</b></div>" : "") +
+      row("bus", "Fares" + (plan.ret ? " (incl. trip home)" : "") + (b.moves ? " + rides between places" : ""), b.fares) +
+      (plan.activitiesOn ? row("ticket", "Entrance fees", b.fees) : "") +
+      (b.meals ? row("utensils", "Food (estimate)", b.meals) : "") +
+      (plan.nights ? row("bed", plan.lodging.label + " stay · " + plan.nights + " night" + (plan.nights > 1 ? "s" : ""), b.stay) : "") +
       '<div class="budget__total"><span>Total per person</span><b>' + T.peso(b.perPerson) + "</b></div>" +
-      (plan.pax > 1 ? "<div><span>For " + plan.pax + " travelers</span><b>" + T.peso(b.group) + "</b></div>" : "") +
-      (saved > 0 ? '<p class="budget__save">' + icon("id") + "Your " + esc(plan.traveler.label.toLowerCase()) + " discount saves " + T.peso(saved) + " per person</p>" : "") +
+      (plan.pax > 1 ? "<div><span>" + icon("users") + "For " + plan.pax + " travelers</span><b>" + T.peso(b.group) + "</b></div>" : "") +
+      (saved > 0 ? '<p class="budget__save">' + icon("id") + "Your student / senior / PWD discount saves " + T.peso(saved) + " per person</p>" : "") +
       "</div>";
   }
   function reminderList(plan) {
@@ -1001,41 +1271,58 @@
     var d = T.weather.describe(w.code);
     return '<span class="wx">' + icon(d.icon) + Math.round(w.min) + "–" + Math.round(w.max) + "°C · " + esc(d.label) + (w.rain != null ? " · " + w.rain + "% rain" : "") + "</span>";
   }
+  function dateRange(plan) {
+    var a = new Date(plan.option.depart);
+    if (plan.days.length < 2) return T.date(a, true);
+    var b = new Date(plan.days[plan.days.length - 1].date);
+    return T.date(a) + " – " + T.date(b) + " · " + plan.days.length + " days";
+  }
+  function homeName(t) { return t.fromHome ? "home" : t.from.name; }
+  /* the itinerary cards shared by the plan result and a saved trip */
+  function itinerary(plan, opts) {
+    opts = opts || {};
+    var o = plan.option, multi = plan.days.length > 1;
+    var html = '<div class="card"><div class="sec-head"><h3>' + icon("route") + " Getting there</h3><span class=\"muted\">" + T.dur(o.minutes) + " · " + T.peso(o.fare) + "/person</span></div>" +
+      legsTimeline(o, { startLabel: plan.fromHome ? "Leave home" : "Leave " + plan.from.name, startSub: plan.from.label, endLabel: "Arrive at " + plan.stops[0].name, check: opts.check, done: plan.done, prefix: "o" }) + "</div>";
+    plan.days.forEach(function (d) {
+      var title = multi ? "Day " + (d.index + 1) + " · " + T.date(new Date(d.date)) : "Your day in " + plan.stops.map(function (s) { return s.name; }).join(" → ");
+      html += '<div class="card day-card"><div class="sec-head"><h3>' + icon(multi ? "calendar" : "sparkle") + " " + esc(title) + "</h3>" +
+        (opts.edit && plan.activitiesOn ? '<button class="btn btn--sm btn--ghost" type="button" data-action="edit-stops" data-day="' + d.index + '">' + icon("edit") + "Edit places</button>" : "") + "</div>" +
+        (multi ? '<p class="day-card__stops">' + icon("pin") + esc(d.stops.map(function (s) { return s.name; }).join(" → ")) + "</p>" : "") +
+        (opts.edit && plan.leaveAdjusted && d.index === plan.days.length - 1 ? '<p class="fine">Your end time was too close to arrival, so we planned until ' + T.time(new Date(d.end)) + ".</p>" : "") +
+        (opts.edit ? fitBlock(d.fit, d.end, endVerb(plan, d.index), d.index) : "") +
+        (d.steps.length ? dayTimeline(d, { check: opts.check, done: plan.done }) : '<p class="muted">No featured spots here yet. Explore nearby places after you arrive.</p>') +
+        (d.skipped.length ? '<p class="fine">' + d.skipped.map(function (s) { return esc(s.place.name) + ": " + esc(s.why); }).join(" · ") + "</p>" : "") + "</div>";
+    });
+    if (plan.back) html += '<div class="card"><div class="sec-head"><h3>' + icon("home") + " Going home</h3><span class=\"muted\">" + T.dur(plan.back.minutes) + " · " + T.peso(plan.back.fare) + "/person</span></div>" +
+      legsTimeline(plan.back, { startLabel: "Leave for " + homeName(plan), startIcon: "flag", endLabel: plan.fromHome ? "Arrive home" : "Arrive at " + plan.from.name, endIcon: "home", check: opts.check, done: plan.done, prefix: "b" }) + "</div>";
+    return html;
+  }
   function renderPlan(plan, scroll) {
     var out = $("#plan-out");
     if (!out) return;
     var o = plan.option;
-    var visits = plan.day.steps.filter(function (s) { return s.kind === "visit"; }).map(function (s) { return s.place.id; });
     var html =
       '<section class="result">' +
-      '<div class="result__head"><div><p class="eyebrow">' + esc(T.date(new Date(o.depart), true)) + "</p><h2>" + esc(plan.from.name) + " → " + esc(plan.to.name) + "</h2>" +
-      '<p class="muted">' + plan.pax + " traveler" + (plan.pax > 1 ? "s" : "") + " · " + esc(plan.traveler.label) + " fares " + weatherLine(plan) + "</p></div></div>" +
-      '<p class="label">Choose how to get there</p>' +
+      '<div class="result__head"><div><p class="eyebrow">' + esc(dateRange(plan)) + "</p><h2>" + esc(plan.fromHome ? "Home" : plan.from.name) + " → " + esc(plan.name) + (plan.ret ? " → Home" : "") + "</h2>" +
+      '<p class="muted">' + plan.pax + " traveler" + (plan.pax > 1 ? "s" : "") + " · " + esc(plan.traveler.id === "regular" ? "Regular fares" : "Student / Senior / PWD fares") + (plan.nights ? " · " + plan.nights + " night" + (plan.nights > 1 ? "s" : "") + " " + esc(plan.lodging.label.toLowerCase()) : "") + " " + weatherLine(plan) + "</p></div></div>" +
+      '<p class="label">Choose how to get to ' + esc(plan.stops[0].name) + "</p>" +
       '<div class="opts">' + plan.options.map(function (x) {
         return '<button class="opt' + (x.id === o.id ? " is-on" : "") + '" type="button" data-action="plan-option" data-id="' + x.id + '" aria-pressed="' + (x.id === o.id) + '">' +
           '<span class="opt__tag">' + esc(x.tag) + "</span>" +
           '<span class="opt__modes">' + x.legs.filter(function (l, i, a) { return l.mode !== "walk" || a.length === 1; }).map(function (l) { return icon(modeIcon[l.mode]); }).join(icon("chev-r", "sep")) + "</span>" +
           '<span class="opt__title">' + esc(x.title) + "</span>" +
-          '<span class="opt__nums"><b>' + T.peso(x.fare) + "</b>" + (x.fareReg > x.fare ? '<s class="muted">' + T.peso(x.fareReg) + "</s>" : "") + "<span>" + T.dur(x.minutes) + " · arrive " + T.time(new Date(x.arrive)) + "</span></span>" +
+          '<span class="opt__nums"><b>' + T.peso(x.fare) + "</b>" + (x.fareReg > x.fare ? '<s class="muted">' + T.peso(x.fareReg) + "</s>" : "") + "<span>Leave home " + T.time(new Date(x.depart)) + " · arrive " + T.time(new Date(x.arrive)) + " · " + T.dur(x.minutes) + "</span></span>" +
           (x.via ? '<span class="opt__via">via ' + esc(x.via) + "</span>" : "") + "</button>";
       }).join("") + "</div>" +
-      '<div class="card"><div class="sec-head"><h3>' + icon("route") + " Getting there</h3><span class=\"muted\">" + T.dur(o.minutes) + " · " + T.peso(o.fare) + "/person</span></div>" +
-      legsTimeline(o, { toName: plan.to.name }) + "</div>" +
-      (plan.activitiesOn ? '<div class="card"><div class="sec-head"><h3>' + icon("sparkle") + " Your day in " + esc(plan.to.name) + "</h3>" +
-        '<button class="btn btn--sm btn--ghost" type="button" data-action="edit-stops">' + icon("edit") + "Edit stops</button></div>" +
-        (plan.leaveAdjusted ? '<p class="fine">Your leave time was too close to arrival, so we planned until ' + T.time(new Date(plan.leaveAt)) + ".</p>" : "") +
-        fitBlock(plan.day.fit, plan.leaveAt, plan.ret) +
-        (plan.day.steps.length ? dayTimeline(plan.day) : '<p class="muted">No featured spots here yet. Explore nearby places after you arrive.</p>') +
-        (plan.day.skipped.length ? '<p class="fine">' + plan.day.skipped.map(function (s) { return esc(s.place.name) + ": " + esc(s.why); }).join(" · ") + "</p>" : "") + "</div>" : "") +
-      (plan.back ? '<div class="card"><div class="sec-head"><h3>' + icon("home") + " Going home</h3><span class=\"muted\">" + T.dur(plan.back.minutes) + " · " + T.peso(plan.back.fare) + "/person</span></div>" +
-        legsTimeline(plan.back, { toName: plan.from.name }) + "</div>" : "") +
+      '<div id="itinerary" class="itinerary"><p class="label">Your itinerary</p>' + itinerary(plan, { edit: true }) + "</div>" +
       '<div class="card"><h3 class="h3">' + icon("wallet") + " Budget</h3>" + budgetCard(plan) + "</div>" +
       '<div class="card"><h3 class="h3">' + icon("bell") + " Reminders</h3>" + reminderList(plan) + "</div>" +
       '<div class="result__actions">' +
       '<button class="btn btn--primary btn--lg" type="button" data-action="save-trip">' + icon("ticket") + "Save trip</button>" +
       '<button class="btn btn--ghost" type="button" data-action="plan-ics">' + icon("calendar") + "Add to calendar</button>" +
       '<button class="btn btn--ghost" type="button" data-action="plan-share">' + icon("share") + "Share</button></div>" +
-      '<p class="fine">Fares, times and fees are estimates based on standard fare guides and typical traffic. Check signboards, posted fare matrices and venue notices on the day.</p>' +
+      '<p class="fine">Fares, times, room rates and fees are estimates based on standard fare guides and typical traffic. Check signboards, posted fare matrices and venue notices on the day.</p>' +
       "</section>";
     out.innerHTML = html;
     if (scroll) out.scrollIntoView({ behavior: T.reduceMotion ? "auto" : "smooth", block: "start" });
@@ -1043,8 +1330,7 @@
   T.renderPlanTimeline = { legs: legsTimeline, day: dayTimeline, budget: budgetCard, reminders: reminderList };
 
   T.actions["save-trip"] = function () {
-    var plan = T.state.plan;
-    var saved = T.trips.save(plan);
+    var saved = T.trips.save(T.state.plan);
     T.toast("Trip saved!", "Find it in Trips. Turn on reminders there.", "ticket");
     T.router.go("trip/" + saved.id);
   };
@@ -1054,22 +1340,58 @@
     var blob = new Blob([T.planner.ics(plan)], { type: "text/calendar" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "tara-trip-" + plan.to.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".ics";
+    a.download = "tara-trip-" + plan.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".ics";
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
     T.toast("Calendar file ready", "Open it to add the trip and its alarms to your calendar.", "calendar");
   }
+
+  /* ---------- Share: easy-to-read text with spacing and icons ---------- */
+  var modeEmoji = { walk: "🚶", tricycle: "🛺", jeep: "🚙", bus: "🚌", lrt: "🚆", grab: "🚕", car: "🚗" };
+  function shareText(plan) {
+    var L = [], tm = function (d) { return T.time(new Date(d)); };
+    var blank = function () { if (L[L.length - 1] !== "") L.push(""); };
+    L.push("🧳 " + (plan.fromHome ? "Home" : plan.from.name) + " → " + plan.name);
+    L.push("📅 " + dateRange(plan));
+    L.push("👥 " + plan.pax + " traveler" + (plan.pax > 1 ? "s" : "") + " · " + (plan.traveler.id === "regular" ? "Regular fares" : "Student / Senior / PWD fares"));
+    blank();
+    L.push("🏠 " + tm(plan.option.depart) + " — Leave " + homeName(plan));
+    plan.option.legs.forEach(function (l) { L.push("    " + modeEmoji[l.mode] + " " + tm(l.start) + "  " + l.text + (l.fare ? " (" + T.peso(l.fare) + ")" : "")); });
+    L.push("📍 " + tm(plan.option.arrive) + " — Arrive at " + plan.stops[0].name);
+    plan.days.forEach(function (d) {
+      blank();
+      L.push(plan.days.length > 1 ? "☀️ DAY " + (d.index + 1) + " · " + T.date(new Date(d.date)) : "☀️ YOUR DAY");
+      d.steps.forEach(function (s) {
+        if (s.kind === "visit") L.push("  • " + tm(s.start) + "  " + s.name + (s.fee ? " (" + T.peso(s.fee) + ")" : ""));
+        else if (s.kind === "meal") L.push("  🍽️ " + tm(s.start) + "  " + s.name);
+        else if (s.kind === "free") L.push("  ✨ " + tm(s.start) + "  " + s.name);
+        else if (s.kind === "ride") L.push("  ➡️ " + tm(s.start) + "  " + s.name + " by " + s.ride.title + " (" + T.peso(s.fare) + ")");
+        else if (s.kind === "stay") L.push("  🌙 " + tm(s.start) + "  " + s.name + " (" + T.peso(s.cost) + "/person)");
+      });
+    });
+    if (plan.back) {
+      blank();
+      L.push("🚏 " + tm(plan.back.depart) + " — Leave for " + homeName(plan));
+      L.push("🏡 " + tm(plan.back.arrive) + " — " + (plan.fromHome ? "Arrive home" : "Arrive at " + plan.from.name));
+    }
+    blank();
+    var b = plan.budget;
+    L.push("💰 Budget: " + T.peso(b.perPerson) + " per person" + (plan.pax > 1 ? " (" + T.peso(b.group) + " for " + plan.pax + ")" : ""));
+    L.push("    Fares " + T.peso(b.fares) + (b.fees ? " · Entrance " + T.peso(b.fees) : "") + (b.meals ? " · Food " + T.peso(b.meals) : "") + (b.stay ? " · Stay " + T.peso(b.stay) : ""));
+    blank();
+    L.push("Planned with Tara 🌴");
+    return L.join("\n");
+  }
   function shareTrip(plan) {
-    var o = plan.option;
-    var lines = ["Trip to " + plan.to.name + " — " + T.date(new Date(o.depart), true)];
-    o.legs.forEach(function (l) { lines.push(T.time(new Date(l.start)) + " · " + l.text + (l.fare ? " (" + T.peso(l.fare) + ")" : "")); });
-    lines.push("Arrive " + T.time(new Date(o.arrive)));
-    plan.day.steps.forEach(function (s) { lines.push(T.time(new Date(s.start)) + " · " + s.name); });
-    if (plan.back) lines.push("Head home " + T.time(new Date(plan.back.depart)) + ", arrive " + T.time(new Date(plan.back.arrive)));
-    lines.push("Budget: " + T.peso(plan.budget.perPerson) + " per person — planned with Tara");
-    var text = lines.join("\n");
-    if (navigator.share) navigator.share({ title: "Trip to " + plan.to.name, text: text }).catch(function () {});
-    else if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { T.toast("Itinerary copied", "Paste it in Messenger or Viber.", "check"); });
+    var text = shareText(plan);
+    var copy = function () {
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { T.toast("Itinerary copied", "Paste it in Messenger or Viber.", "check"); });
+    };
+    T.sheet.open("Share your trip", '<pre class="share-preview">' + esc(text) + "</pre>" +
+      '<div class="result__actions">' + (navigator.share ? '<button class="btn btn--primary" type="button" data-action="share-send">' + icon("share") + "Share</button>" : "") +
+      '<button class="btn btn--ghost" type="button" data-action="share-copy">' + icon("check") + "Copy text</button></div>");
+    T.actions["share-send"] = function () { navigator.share({ title: "Trip: " + plan.name, text: text }).catch(function () {}); };
+    T.actions["share-copy"] = copy;
   }
   T.downloadIcs = downloadIcs; T.shareTrip = shareTrip;
 
@@ -1080,7 +1402,7 @@
     var tab = r.query.tab || "upcoming";
     var all = T.trips.all();
     var now = Date.now();
-    var up = all.filter(function (t) { return new Date(t.back ? t.back.arrive : t.option.arrive) >= now; }).sort(function (a, b) { return new Date(a.option.depart) - new Date(b.option.depart); });
+    var up = all.filter(function (t) { return T.planner.endTime(t) >= now; }).sort(function (a, b) { return new Date(a.option.depart) - new Date(b.option.depart); });
     var past = all.filter(function (t) { return up.indexOf(t) < 0; }).sort(function (a, b) { return new Date(b.option.depart) - new Date(a.option.depart); });
     var list = tab === "past" ? past : up;
     var html = pageHead("My trips", { sub: up.length ? up.length + " upcoming" : "Plan, save and track your trips" }) +
@@ -1091,45 +1413,52 @@
   };
   function tripCard(t) {
     var dep = new Date(t.option.depart);
-    var total = t.option.legs.length + t.day.steps.length + (t.back ? t.back.legs.length : 0);
+    var total = T.planner.steps(t).length;
     var done = Object.keys(t.done || {}).filter(function (k) { return t.done[k]; }).length;
     return '<a class="trip-card" href="#/trip/' + t.id + '">' +
       '<span class="trip-card__date"><b>' + dep.getDate() + "</b>" + esc(dep.toLocaleDateString("en-PH", { month: "short" })) + "</span>" +
-      '<div class="trip-card__body"><h3>' + esc(t.to.name) + "</h3><p>" + esc(T.time(dep)) + " from " + esc(t.from.name) + "</p>" +
+      '<div class="trip-card__body"><h3>' + esc(t.name) + "</h3><p>Leave " + esc(homeName(t)) + " " + esc(T.time(dep)) + (t.days.length > 1 ? " · " + t.days.length + " days" : "") + "</p>" +
       '<p class="muted">' + esc(t.option.title) + " · " + T.peso(t.budget.perPerson) + "/person</p>" +
-      '<div class="progress"><span style="width:' + Math.round(done / Math.max(1, total) * 100) + '%"></span></div></div>' +
+      '<div class="progress"><span style="width:' + Math.round(Math.min(done, total) / Math.max(1, total) * 100) + '%"></span></div></div>' +
       (t.notify ? icon("bell", "trip-card__bell") : "") + icon("chev-r") + "</a>";
   }
   T.views.trip = function (r) {
     var t = T.trips.get(r.param);
     if (!t) { mount(pageHead("Trip", { back: true }) + empty("ticket", "Trip not found", "It may have been deleted.", '<a class="btn btn--primary" href="#/trips">My trips</a>'), { nav: "trips" }); return; }
-    var dep = new Date(t.option.depart), now = new Date();
-    var status = now < dep ? "Leaves " + countdown(dep) : now < new Date(t.back ? t.back.arrive : t.option.arrive) ? "In progress" : "Completed";
-    var html = pageHead("Trip to " + esc(t.to.name), { back: true, sub: esc(T.date(dep, true)) + " · " + esc(status),
+    var dep = new Date(t.option.depart), now = new Date(), endT = T.planner.endTime(t);
+    var status = now < dep ? "Leaves " + countdown(dep) : now < endT ? "In progress" : "Completed";
+    var last = t.stops[t.stops.length - 1];
+    var html = pageHead(esc(t.name), { back: true, sub: esc(dateRange(t)) + " · " + esc(status),
       actions: '<button class="icon-btn" type="button" data-action="trip-delete" data-id="' + t.id + '" aria-label="Delete trip">' + icon("trash") + "</button>" }) +
       '<div class="trip-top card">' +
-      '<div class="trip-top__row"><div><small>Leave</small><b>' + T.time(dep) + "</b></div>" + icon("arrow") + "<div><small>Arrive</small><b>" + T.time(new Date(t.option.arrive)) + "</b></div>" +
-      (t.back ? icon("home") + "<div><small>Leave for home</small><b>" + T.time(new Date(t.back.depart)) + "</b></div>" : "") + "</div>" +
+      '<div class="trip-top__row"><div><small>' + icon("home") + "Leave home</small><b>" + T.time(dep) + "</b></div>" + icon("arrow") +
+      "<div><small>" + icon("pin") + "Arrive at " + esc(t.stops[0].name) + "</small><b>" + T.time(new Date(t.option.arrive)) + "</b></div>" +
+      (t.back ? icon("arrow") + "<div><small>" + icon("flag") + "Leave for home</small><b>" + T.time(new Date(t.back.depart)) + "</b></div>" + icon("arrow") + "<div><small>" + icon("home") + "Arrive home</small><b>" + T.time(new Date(t.back.arrive)) + "</b></div>" : "") + "</div>" +
       (status !== "Completed" ? '<a class="btn btn--primary btn--block btn--lg live-start" href="#/live/' + t.id + '">' + icon("route") + (status === "In progress" ? "Continue live trip" : "Start live trip") + "</a>" : "") +
       switchRow2("trip-notify", "Remind me", "Notifications for each step while the app is open, plus calendar alarms", t.notify, t.id) +
       '<div class="result__actions result__actions--tight"><button class="btn btn--ghost btn--sm" type="button" data-action="trip-ics" data-id="' + t.id + '">' + icon("calendar") + "Add to calendar</button>" +
       '<button class="btn btn--ghost btn--sm" type="button" data-action="trip-share" data-id="' + t.id + '">' + icon("share") + "Share</button>" +
-      '<a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&origin=' + t.from.lat + "," + t.from.lng + "&destination=" + t.to.lat + "," + t.to.lng + '&travelmode=transit">' + icon("map") + "Google Maps</a></div></div>" +
+      '<a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&origin=' + t.from.lat + "," + t.from.lng + "&destination=" + last.lat + "," + last.lng +
+      (t.stops.length > 1 ? "&waypoints=" + t.stops.slice(0, -1).map(function (s) { return s.lat + "," + s.lng; }).join("%7C") : "") + '&travelmode=transit">' + icon("map") + "Google Maps</a></div></div>" +
       '<div class="mini-map mini-map--tall card" id="trip-map"></div>' +
-      '<div class="card"><div class="sec-head"><h3>' + icon("route") + " Getting there</h3><span class=\"muted\">" + T.peso(t.option.fare) + "/person</span></div>" + legsTimeline(t.option, { toName: t.to.name, check: true, done: t.done, prefix: "o" }) + "</div>" +
-      (t.day.steps.length ? '<div class="card"><h3 class="h3">' + icon("sparkle") + " Your day</h3>" + dayTimeline(t.day, { check: true, done: t.done }) + "</div>" : "") +
-      (t.back ? '<div class="card"><div class="sec-head"><h3>' + icon("home") + " Going home</h3><span class=\"muted\">" + T.peso(t.back.fare) + "/person</span></div>" + legsTimeline(t.back, { toName: t.from.name, check: true, done: t.done, prefix: "b" }) + "</div>" : "") +
+      itinerary(t, { check: true }) +
       '<div class="card"><h3 class="h3">' + icon("bell") + " Reminders</h3>" + reminderList(t) + "</div>" +
       '<div class="card"><h3 class="h3">' + icon("wallet") + " Budget</h3>" + budgetCard(t) + "</div>";
     mount(html, { nav: "trips" });
-    var m = T.maps.make($("#trip-map"), t.to, 12);
+    var m = T.maps.make($("#trip-map"), t.stops[0], 12);
     if (m) {
       var pts = [[t.from.lat, t.from.lng]];
       t.option.legs.forEach(function (l) { pts.push([l.to.lat, l.to.lng]); });
+      L.marker([t.from.lat, t.from.lng], { icon: T.maps.me() }).addTo(m).bindPopup(t.fromHome ? "Home" : esc(t.from.label));
+      var n = 0;
+      t.days.forEach(function (d) {
+        d.steps.forEach(function (s) {
+          if (s.place) { n++; L.marker([s.place.lat, s.place.lng], { icon: T.maps.pin(s.place, n) }).addTo(m).bindPopup(esc(s.name)); pts.push([s.place.lat, s.place.lng]); }
+          if (s.kind === "ride") s.ride.legs.forEach(function (l) { pts.push([l.to.lat, l.to.lng]); });
+          if (s.kind === "stay" && s.at) L.marker([s.at.lat, s.at.lng], { icon: T.maps.pin({ cat: "other" }, "🌙") }).addTo(m).bindPopup(esc(s.name));
+        });
+      });
       L.polyline(pts, { color: "#f57a3d", weight: 4, opacity: 0.9, dashArray: "8 8" }).addTo(m);
-      L.marker([t.from.lat, t.from.lng], { icon: T.maps.me() }).addTo(m).bindPopup(esc(t.from.label));
-      t.day.steps.forEach(function (s, i) { if (s.place) L.marker([s.place.lat, s.place.lng], { icon: T.maps.pin(s.place, i + 1) }).addTo(m).bindPopup(esc(s.name)); });
-      L.marker([t.to.lat, t.to.lng], { icon: T.maps.pin({ cat: (T.places.get(t.to.placeId) || {}).cat || "other" }) }).addTo(m);
       m.fitBounds(pts, { padding: [24, 24] });
     }
   };
@@ -1139,7 +1468,7 @@
   T.inputs["trip-check"] = function (el) {
     var t = T.trips.get(T.router.parse().param);
     t.done = t.done || {};
-    t.done[el.dataset.key] = el.checked;
+    el.dataset.key.split(",").forEach(function (k) { t.done[k] = el.checked; });
     T.trips.update(t);
     el.closest(".tl__item").classList.toggle("is-done", el.checked);
   };
@@ -1177,9 +1506,11 @@
     var dark = document.documentElement.getAttribute("data-theme") === "dark";
     var notif = window.Notification ? Notification.permission : "unsupported";
     var html = pageHead("Profile") +
-      '<div class="card profile-card">' + avatar(u, "lg") + "<div><h2>" + esc(u.name || "Traveler") + "</h2><p class=\"muted\">" + esc(u.guest ? "Guest — create an account to keep your trips under your name" : u.email || "") + "</p></div>" +
+      '<div class="card profile-card"><label class="avatar-edit" title="Change profile photo">' + avatar(u, "lg") + '<span class="avatar-edit__cam">' + icon("camera") + '</span><input type="file" accept="image/*" data-input="avatar-file" hidden></label>' +
+      "<div><h2>" + esc(u.name || "Traveler") + "</h2><p class=\"muted\">" + esc(u.guest ? "Guest — create an account to keep your trips under your name" : u.email || "") + "</p>" +
+      (u.photo ? '<button class="link-btn link-btn--inline" type="button" data-action="avatar-remove">Remove photo</button>' : '<p class="fine">Tap the picture to upload a profile photo.</p>') + "</div>" +
       '<button class="icon-btn" type="button" data-action="edit-name" aria-label="Edit name">' + icon("edit") + "</button></div>" +
-      '<div class="card"><h3 class="h3">' + icon("id") + " Traveler type</h3>" + travelerSeg(u.type || "regular", "profile-type") + '<p class="fine" id="type-note">' + typeNote(u.type || "regular") + "</p></div>" +
+      '<div class="card"><h3 class="h3">' + icon("id") + " Fare discount</h3>" + travelerSeg(u.type || "regular", "profile-type") + '<p class="fine" id="type-note">' + typeNote(u.type || "regular") + "</p></div>" +
       '<div class="card"><h3 class="h3">' + icon("pin") + " Locations</h3>" +
       '<button class="pick-item" type="button" data-action="change-location">' + icon("locate") + "<span><strong>Current location</strong><small>" + esc(here.label) + "</small></span>" + icon("edit") + "</button>" +
       '<button class="pick-item" type="button" data-action="set-home">' + icon("home") + "<span><strong>Home</strong><small>" + esc(u.home ? u.home.label : "Not set") + "</small></span>" + icon("edit") + "</button></div>" +
@@ -1193,9 +1524,20 @@
       '<div class="result__actions result__actions--tight">' + (u.guest ? '<a class="btn btn--primary btn--sm" href="#/signup">Create account</a>' : "") +
       '<button class="btn btn--ghost btn--sm" type="button" data-action="logout">' + icon("logout") + (u.guest ? "Exit guest mode" : "Log out") + "</button>" +
       '<button class="btn btn--ghost btn--sm danger" type="button" data-action="wipe">' + icon("trash") + "Delete my data</button></div></div>" +
-      '<p class="fine center">Tara · Map data © OpenStreetMap contributors · Weather by Open-Meteo · Photos via Wikipedia</p>';
+      '<a class="made-by" href="#/about"><span class="studio-mark studio-mark--sm" aria-hidden="true"><span>K</span><i>&amp;</i><span>A</span></span><span>Tara is made by <b>K &amp; A Studios</b></span>' + icon("chev-r") + "</a>" +
+      '<p class="fine center">Map data © OpenStreetMap contributors · Weather by Open-Meteo · Photos via Wikipedia</p>';
     mount(html, { nav: "profile" });
   };
+  T.inputs["avatar-file"] = function (el) {
+    var f = el.files && el.files[0];
+    if (!f) return;
+    T.readImage(f, 320, 0.85).then(function (src) {
+      if (!T.auth.update({ photo: src })) throw new Error("Couldn't save the photo.");
+      T.toast("Profile photo updated", "Looking good!", "camera");
+      T.router.resolve();
+    }).catch(function (e) { T.toast("Photo not saved", e.message, "info", "warn"); });
+  };
+  T.actions["avatar-remove"] = function () { T.auth.update({ photo: null }); T.toast("Photo removed", "", "user"); T.router.resolve(); };
   T.actions["set-home"] = function () {
     T.pickLocation({ mode: "location", onPick: function (loc) { T.auth.update({ home: { label: loc.label, lat: loc.lat, lng: loc.lng, approx: !!loc.approx } }); T.toast("Home saved", loc.label, "home"); T.router.resolve(); } });
   };
@@ -1240,6 +1582,7 @@
     if (st.type === "leg") return modeIcon[st.mode];
     if (st.type === "meal") return "utensils";
     if (st.type === "free") return "sparkle";
+    if (st.type === "stay") return "bed";
     return st.place ? T.cat(st.place.cat).icon : "pin";
   }
   function liveAlert(title, body, tripId) {
@@ -1260,9 +1603,10 @@
     var pct = Math.round(doneCount / steps.length * 100);
 
     if (idx < 0) {
-      var visited = t.day.steps.filter(function (s) { return s.kind === "visit" && s.place; });
-      mount(pageHead("Trip complete", { back: true, sub: "To " + esc(t.to.name) }) +
-        '<div class="card live-done"><span class="empty__ic">' + icon("check") + "</span><h2>Salamat sa paglalakbay!</h2><p class=\"muted\">You finished every step of your trip to " + esc(t.to.name) + ".</p></div>" +
+      var visited = [];
+      t.days.forEach(function (d) { d.steps.forEach(function (s) { if (s.kind === "visit" && s.place) visited.push(s); }); });
+      mount(pageHead("Trip complete", { back: true, sub: esc(t.name) }) +
+        '<div class="card live-done"><span class="empty__ic">' + icon("check") + "</span><h2>Salamat sa paglalakbay!</h2><p class=\"muted\">You finished every step of your trip to " + esc(t.name) + ".</p></div>" +
         (visited.length ? '<div class="card"><h3 class="h3">' + icon("star") + " Rate the places you visited</h3><div class=\"rows\">" + visited.map(function (s) {
           return '<div class="prow prow--plain">' + photo(s.place, "prow__ph") + '<div class="prow__body"><h3>' + esc(s.place.name) + '</h3><p class="prow__meta">' + ratingInline(s.place) + '</p></div><button class="btn btn--sm btn--ghost" type="button" data-action="review" data-id="' + esc(s.place.id) + '">Review</button></div>';
         }).join("") + "</div></div>" : "") +
@@ -1286,14 +1630,14 @@
     }
     var tgt = cur.target;
     var gmaps = tgt ? "https://www.google.com/maps/dir/?api=1&destination=" + tgt.lat + "," + tgt.lng + "&travelmode=" + (cur.mode === "walk" ? "walking" : cur.mode === "grab" || cur.mode === "car" ? "driving" : "transit") : "";
-    var doneLabel = cur.type === "leg" ? (cur.ride ? "I got off — next step" : "I'm here — next step") : cur.type === "free" ? "Done — head home" : "Done here — next";
+    var doneLabel = cur.type === "leg" ? (cur.ride ? "I got off — next step" : "I'm here — next step") : cur.type === "stay" ? "Good morning — start the day" : cur.type === "free" ? "Done — next" : "Done here — next";
     var next = steps.slice(idx + 1, idx + 5);
-    var html = pageHead("Live trip", { back: true, sub: "To " + esc(t.to.name) + " · step " + (idx + 1) + " of " + steps.length,
+    var html = pageHead("Live trip", { back: true, sub: esc(t.name) + (t.days.length > 1 && cur.day != null ? " · Day " + (cur.day + 1) : "") + " · step " + (idx + 1) + " of " + steps.length,
       actions: '<button class="icon-btn" type="button" data-action="live-wake" aria-label="Keep screen on" title="Keep screen on">' + icon("sun") + "</button>" }) +
       '<div class="live-progress"><span style="width:' + pct + '%"></span></div>' +
       '<div class="live-status live-status--' + status.cls + '">' + icon(status.ic) + "<span>" + esc(status.text) + "</span></div>" + skipTip +
       '<div class="card live-card">' +
-      '<div class="live-card__mode"><span class="tl__ic">' + icon(liveIcon(cur)) + "</span><span>" + esc(cur.type === "leg" ? (cur.line || T.planner.modeName[cur.mode]) : cur.type === "meal" ? "Lunch" : cur.type === "free" ? "Free time" : "Visit") + "</span>" +
+      '<div class="live-card__mode"><span class="tl__ic">' + icon(liveIcon(cur)) + "</span><span>" + esc(cur.type === "leg" ? (cur.line || T.planner.modeName[cur.mode]) : cur.type === "meal" ? "Lunch" : cur.type === "free" ? "Free time" : cur.type === "stay" ? "Overnight stay" : "Visit") + "</span>" +
       '<span class="grow"></span><span class="live-card__time">' + T.time(cur.start) + " – " + T.time(cur.end) + "</span></div>" +
       "<h2>" + esc(cur.title) + "</h2>" +
       (cur.board ? '<p class="tl__board">' + icon("pin") + esc(cur.board) + "</p>" : "") +
@@ -1363,6 +1707,17 @@
     if (!navigator.wakeLock) { T.toast("Not supported", "Your browser can't keep the screen on. Adjust screen timeout in phone settings.", "info", "warn"); return; }
     navigator.wakeLock.request("screen").then(function (l) { live.wake = l; T.toast("Screen will stay on", "Until you leave this page.", "sun"); })
       .catch(function () { T.toast("Couldn't keep the screen on", "Try again after tapping the screen.", "info", "warn"); });
+  };
+
+  T.views.about = function () {
+    mount(pageHead("About", { back: true }) +
+      '<div class="about card">' +
+      '<div class="studio-mark studio-mark--xl" aria-hidden="true"><span>K</span><i>&amp;</i><span>A</span></div>' +
+      "<h2>K &amp; A Studios</h2><p class=\"muted\">Creators of Tara</p>" +
+      "<p>Tara is a travel buddy for Filipino commuters and travelers — find places, plan the ride with real signboards and fares, and enjoy a day trip or a few days away without the guesswork.</p>" +
+      '<ul class="about__list"><li>' + icon("route") + "Commute plans with student, senior &amp; PWD discounts</li><li>" + icon("calendar") + "Day tours and multi-day trips with stopovers</li><li>" + icon("chat") + "Reviews and photos from fellow travelers</li></ul>" +
+      '<a class="btn btn--primary btn--block" href="#/plan">' + icon("sparkle") + "Plan a trip</a></div>" +
+      '<p class="fine center">© ' + new Date().getFullYear() + " K &amp; A Studios · Map data © OpenStreetMap contributors · Weather by Open-Meteo · Photos via Wikipedia</p>", { nav: "profile" });
   };
 
   T.views.notfound = function () { mount(pageHead("Not found", { back: true }) + empty("compass", "Wrong turn", "This page doesn't exist.", '<a class="btn btn--primary" href="#/home">Go home</a>')); };

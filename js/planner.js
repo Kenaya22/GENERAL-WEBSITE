@@ -111,12 +111,12 @@
   function jeepLeg(a, b, opts) {
     opts = opts || {};
     var km = dist(a, b) * F.roadFactor;
-    var fare = quarter(F.jeep.base + Math.max(0, km - F.jeep.baseKm) * F.jeep.perKm);
+    var fare = Math.round(F.jeep.base + Math.max(0, km - F.jeep.baseKm) * F.jeep.perKm);
     var long = km > 14 && !opts.sign;
     var speed = km > 10 ? 24 : F.jeep.speed; // highway stretches move faster than city streets
     return { mode: "jeep", from: pt(a), to: pt(b), km: km, ride: km / speed * 60, wait: F.jeep.wait, fareReg: fare, discount: "road", road: true,
       sign: opts.sign, board: opts.board || "",
-      text: opts.sign ? "Ride a jeepney with signboard “" + opts.sign + "”" : "Ride a jeepney toward " + (opts.toward || b.name),
+      text: opts.sign ? "Ride a jeepney going to " + (opts.goes || b.name) + " — signboard says “" + opts.sign + "”" : "Ride a jeepney toward " + (opts.toward || b.name),
       tip: "Tell the driver “Para po sa " + b.name + "”. Pass your fare forward with “Bayad po”." + (long ? " Long route — you may need to transfer once; ask the driver." : "") };
   }
   function localLeg(a, b) {
@@ -125,12 +125,12 @@
     if (d < 3) return trikeLeg(a, b);
     return jeepLeg(a, b);
   }
-  function busLeg(a, b, sign, how) {
+  function busLeg(a, b, sign, how, goes) {
     var km = dist(a, b) * 1.2;
     var fare = Math.round(F.bus.base + Math.max(0, km - F.bus.baseKm) * F.bus.perKm);
     return { mode: "bus", from: pt(a), to: pt(b), km: km, ride: km / F.bus.speed * 60, wait: F.bus.wait, fareReg: fare, discount: "road", road: true,
-      sign: sign, text: "Ride a bus with signboard “" + sign + "”", board: how || "",
-      tip: "Get off at " + b.name + ". Conductors collect fares on board — tell them your stop." };
+      sign: sign, text: "Ride a bus going to " + (goes || b.name) + " — signboard says “" + sign + "”", board: how || "",
+      tip: "Conductors collect fares on board — tell them where you're getting off." };
   }
   function railLeg(lineId, i, j) {
     var L = lines[lineId], km = lineKm(lineId, i, j);
@@ -173,17 +173,18 @@
       l.end = new Date(t);
       var rate = l.discount === "road" ? trav.road : l.discount === "rail" ? trav.rail : 0;
       if (l.mode === "grab") l.fareReg = Math.ceil((F.grab.base + F.grab.perKm * l.km + F.grab.perMin * l.ride * f) / 5) * 5;
-      l.fare = Math.round(l.fareReg * (1 - rate) * 100) / 100;
-      l.saved = Math.round((l.fareReg - l.fare) * 100) / 100;
+      l.fareReg = Math.round(l.fareReg);
+      l.fare = Math.round(l.fareReg * (1 - rate)); // fares are paid in whole pesos
+      l.saved = l.fareReg - l.fare;
       if (l.perCar) carCost += l.fareReg; else { fare += l.fare; fareReg += l.fareReg; }
     });
     var cars = Math.ceil(pax / 4);
     var perPersonCar = carCost * cars / pax;
     return {
       legs: legs, depart: new Date(depart), arrive: t, minutes: Math.round((t - depart) / 60000),
-      fare: Math.round((fare + perPersonCar) * 100) / 100,
-      fareReg: Math.round((fareReg + perPersonCar) * 100) / 100,
-      groupFare: Math.round((fare * pax + carCost * cars) * 100) / 100,
+      fare: Math.round(fare + perPersonCar),
+      fareReg: Math.round(fareReg + perPersonCar),
+      groupFare: Math.round(fare * pax + carCost * cars),
       transfers: legs.filter(function (l) { return l.mode !== "walk"; }).length - 1,
       modes: legs.map(function (l) { return l.mode; }),
     };
@@ -200,9 +201,9 @@
       var rides = fwd ? c.rides.slice() : c.rides.slice().reverse();
       var legs = dist(from, stops[0]) < 0.35 ? [] : [localLeg(from, stops[0])];
       rides.forEach(function (r, k) {
-        var a = stops[k], b = stops[k + 1], sign = fwd ? r.sign : r.back;
-        var board = "Board at " + a.name + ". Look for “" + sign + "” on the signboard.";
-        var leg = r.mode === "bus" ? busLeg(a, b, sign, board) : jeepLeg(a, b, { sign: sign, board: board });
+        var a = stops[k], b = stops[k + 1], sign = fwd ? r.sign : r.back, goes = fwd ? r.goes : r.goesBack;
+        var board = "Board at " + a.name + ". Look for “" + sign + "” on the signboard" + (goes ? " (it goes to " + goes + ")" : "") + ".";
+        var leg = r.mode === "bus" ? busLeg(a, b, sign, board, goes) : jeepLeg(a, b, { sign: sign, board: board, goes: goes });
         leg.approx = true;
         legs.push(leg);
       });
@@ -238,11 +239,11 @@
           var legs;
           if (!fm) {
             legs = (dist(from, stop) < 0.35 ? [] : [localLeg(from, stop)])
-              .concat([busLeg(stop, term, term.sign, stop.how)])
+              .concat([busLeg(stop, term, term.sign, stop.how, term.name)])
               .concat(metroLink(pt(term), to, rail));
           } else {
             legs = metroLink(from, pt(term), rail)
-              .concat([busLeg(term, stop, stop.sign, "Board at " + term.name + ". Look for buses with “" + stop.sign + "” on the signboard.")])
+              .concat([busLeg(term, stop, stop.sign, "Board at " + term.name + ". Look for buses with “" + stop.sign + "” on the signboard.", stop.area)])
               .concat(dist(stop, to) < 0.35 ? [] : [localLeg(stop, to)]);
           }
           // skip unrealistic combos (e.g. a 30 km jeepney ride across Metro Manila)
@@ -251,12 +252,12 @@
         });
       });
       if (!out.length) terms.slice(0, 1).forEach(function (term) {
-        out.push({ kind: "commute", via: term.name, legs: (fm ? metroLink(from, pt(term), true).concat([busLeg(term, stop, stop.sign)]).concat([localLeg(stop, to)])
-          : [localLeg(from, stop), busLeg(stop, term, term.sign, stop.how)].concat(metroLink(pt(term), to, true))) });
+        out.push({ kind: "commute", via: term.name, legs: (fm ? metroLink(from, pt(term), true).concat([busLeg(term, stop, stop.sign, "", stop.area)]).concat([localLeg(stop, to)])
+          : [localLeg(from, stop), busLeg(stop, term, term.sign, stop.how, term.name)].concat(metroLink(pt(term), to, true))) });
       });
     } else if (d > 22) {
       {
-        var b = busLeg(pt(from, "the nearest bus stop or terminal"), pt(to, "the terminal near " + to.name), "UV EXPRESS / BUS", "Ask at the nearest terminal for a van or bus heading to " + to.name + ".");
+        var b = busLeg(pt(from, "the nearest bus stop or terminal"), pt(to, "the terminal near " + to.name), "UV EXPRESS / BUS", "Ask at the nearest terminal for a van or bus heading to " + to.name + ".", to.name);
         b.approx = true;
         out.push({ kind: "commute", legs: [b, localLeg(pt(to, "the terminal"), to)], approx: true });
       }
@@ -302,7 +303,7 @@
   }
 
   /* ======================================================================
-     DAY PLAN at the destination
+     ITINERARY — day by day, with stopovers and overnight stays
      ====================================================================== */
   function moveLeg(a, b) {
     var d = dist(a, b);
@@ -310,24 +311,35 @@
     if (d < 4) return trikeLeg(a, b);
     return jeepLeg(a, b);
   }
-  // all things to do around the destination (city-wide for a city, walking area for a place)
-  function poolFor(to) {
+  function notEat(p) { return p.cat !== "food" && p.cat !== "cafe" && !p.hub; }
+  // all things to do around a stop (city-wide for a city, walking area for a place), minus places already used
+  function poolFor(to, used, home) {
+    used = used || {};
     var origin = to.placeId ? T.places.get(to.placeId) : null;
     var list = to.cityId && !to.placeId
       ? T.places.query({ near: to, scope: { type: "city", id: to.cityId } }).map(function (x) { return x.p; })
       : T.places.query({ near: to, within: 2.5 }).map(function (x) { return x.p; });
-    list = list.filter(function (p) { return p.cat !== "food" && p.cat !== "cafe" && !p.hub; });
+    var fresh = function (p) { return notEat(p) && !used[p.id]; };
+    list = list.filter(fresh);
     if (list.length < 4) {
-      // small town: include nearby towns' sights in the same province (reachable by jeepney/tricycle)
-      var home = T.dest.city(to.cityId) || T.dest.cityOf(to);
+      // small town (or already seen on earlier days): add nearby towns' sights in the same province
+      var town = T.dest.city(to.cityId) || T.dest.cityOf(to);
       T.places.query({ near: to, within: 16 }).forEach(function (x) {
         var pc = T.dest.city(x.p.city);
-        if (home && pc && pc.province !== home.province) return;
-        if (list.indexOf(x.p) < 0 && x.p.cat !== "food" && x.p.cat !== "cafe" && !x.p.hub) list.push(x.p);
+        if (town && pc && pc.province !== town.province) return;
+        if (list.indexOf(x.p) < 0 && fresh(x.p)) list.push(x.p);
       });
     }
-    if (origin && !origin.hub && origin.cat !== "food" && origin.cat !== "cafe" && list.indexOf(origin) < 0) list.unshift(origin);
-    return { origin: origin && !origin.hub ? origin : null, list: list };
+    if (list.length < 3 && Object.keys(used).length) {
+      // multi-day trip ran out of new places: look a little farther, any province
+      // (skips places that are closer to home than to this stop — you can see those any day)
+      T.places.query({ near: to, within: 25 }).forEach(function (x) {
+        if (home && dist(home, x.p) < x.d) return;
+        if (list.indexOf(x.p) < 0 && fresh(x.p)) list.push(x.p);
+      });
+    }
+    if (origin && fresh(origin) && list.indexOf(origin) < 0) list.unshift(origin);
+    return { origin: origin && !origin.hub && !used[origin.id] ? origin : null, list: list };
   }
   function nnOrder(start, places, origin) {
     var shops = places.filter(function (p) { return p.cat === "market"; });
@@ -341,21 +353,23 @@
     return out;
   }
   function closedOn(p, d) { return !!(p.closed && p.closed.indexOf(d.getDay()) > -1); }
+  function moveInfo(mv, trav) {
+    var fareReg = Math.round(mv.fareReg || 0);
+    return { mode: mv.mode, minutes: Math.round(mv.wait + mv.ride), km: mv.km, fareReg: fareReg, fare: Math.round(fareReg * (1 - (mv.discount ? trav.road : 0))) };
+  }
 
-  function schedule(to, arrive, leaveAt, order, trav, origin) {
-    var t = T.addMin(arrive, 5), prev = to, steps = [], notFit = [], skipped = [], lunched = false;
+  function schedule(to, arrive, leaveAt, order, trav, origin, lunchedBefore, usedMap) {
+    var t = T.addMin(arrive, 5), prev = to, steps = [], notFit = [], skipped = [], lunched = !!lunchedBefore;
     var splurge = T.places.query({ near: to, within: 1.5, cat: "food" }).filter(function (x) { return x.p.price === 3; })[0];
-    var moveInfo = function (mv) {
-      return { mode: mv.mode, minutes: Math.round(mv.wait + mv.ride), km: mv.km, fareReg: mv.fareReg || 0, fare: Math.round((mv.fareReg || 0) * (1 - (mv.discount ? trav.road : 0)) * 100) / 100 };
-    };
     var lunch = function (start, near) {
       var food = T.places.query({ near: near, within: 0.9, cat: "food" })
+        .filter(function (x) { return !(usedMap && usedMap[x.p.id]); })
         .sort(function (a, b) { return (a.p.price || 2) - (b.p.price || 2) || a.d - b.d; })[0];
       var spot = food && (food.p.price || 2) <= 2 ? food.p : null;
       var mv = spot ? moveLeg(near, spot) : null;
       var s = spot ? T.addMin(start, Math.round(mv.wait + mv.ride)) : start;
       return { kind: "meal", place: spot, name: spot ? "Lunch at " + spot.name : "Lunch nearby (carinderia or fast food)", start: s, end: T.addMin(s, 60),
-        move: mv ? moveInfo(mv) : null, cost: spot ? C.mealBudget[spot.price || 2] : C.mealBudget[1],
+        move: mv ? moveInfo(mv, trav) : null, cost: spot ? C.mealBudget[spot.price || 2] : C.mealBudget[1],
         tip: spot ? "" : "Budget meals cost about " + T.peso(C.mealBudget[1]) + "." + (splurge ? " Splurge option: " + splurge.p.name + " (about " + T.peso(C.mealBudget[3]) + ")." : "") };
     };
     var lunchDue = function (at) { return !lunched && mins(at) >= 690 && mins(at) < 900; };
@@ -384,7 +398,7 @@
       }
       if (!lunched && (p.visit || 0) >= 180 && mins(start) < 720 && mins(end) >= 780) { lunched = true; note = (note ? note + " · " : "") + "Have lunch inside — food stalls are available"; }
       var fee = T.places.fee(p, trav);
-      steps.push({ kind: "visit", place: p, name: p.name, start: start, end: end, move: moveInfo(mv), note: note,
+      steps.push({ kind: "visit", place: p, name: p.name, start: start, end: end, move: moveInfo(mv, trav), note: note,
         fee: fee.amount || 0, feeReg: fee.regular || fee.amount || 0, tip: (p.tips || [])[0] });
       t = end; prev = p;
     });
@@ -392,28 +406,31 @@
       var l2 = lunch(t, prev);
       if (l2.end <= leaveAt) { steps.push(l2); t = l2.end; prev = l2.place || prev; lunched = true; }
     }
-    return { steps: steps, endAt: t, endPoint: prev, notFit: notFit, skipped: skipped };
+    return { steps: steps, endAt: t, endPoint: prev, notFit: notFit, skipped: skipped, lunched: lunched };
   }
 
-  function activities(to, arrive, leaveAt, trav, include) {
-    var pool = poolFor(to), origin = pool.origin, r;
+  /* things to do at one stop between arrive and leaveAt.
+     ctx: { used: {id:true}, lunched: bool } — include: ordered place ids (kept in that order) */
+  function activities(to, arrive, leaveAt, trav, include, ctx) {
+    ctx = ctx || {};
+    var pool = poolFor(to, ctx.used, ctx.home), origin = pool.origin, r;
     var rank = function (p) { return (p === origin ? 10 : 0) + (T.places.score(p) || 4); };
     if (include) {
-      var chosen = include.map(function (id) { return T.places.get(id); }).filter(Boolean);
-      r = schedule(to, arrive, leaveAt, nnOrder(to, chosen, origin), trav, origin);
+      var chosen = include.map(function (id) { return T.places.get(id); }).filter(function (p) { return p && !(ctx.used && ctx.used[p.id]); });
+      r = schedule(to, arrive, leaveAt, chosen, trav, origin, ctx.lunched, ctx.used);
     } else {
       // auto-fill: add the best spots one by one while they still fit before leaving time
       var ranked = pool.list.filter(function (p) { return p === origin || !(p.fee && p.fee.regular >= 500); })
         .filter(function (p) { return !closedOn(p, arrive); })
         .sort(function (a, b) { return rank(b) - rank(a); });
       var picked = [];
-      r = schedule(to, arrive, leaveAt, [], trav, origin);
+      r = schedule(to, arrive, leaveAt, [], trav, origin, ctx.lunched, ctx.used);
       for (var pass = 0; pass < 2; pass++) {
         for (var i = 0; i < ranked.length; i++) {
           if (picked.indexOf(ranked[i]) > -1) continue;
           if ((leaveAt - r.endAt) / 60000 < 25) break;
           var trial = picked.concat([ranked[i]]);
-          var tr = schedule(to, arrive, leaveAt, nnOrder(to, trial, origin), trav, origin);
+          var tr = schedule(to, arrive, leaveAt, nnOrder(to, trial, origin), trav, origin, ctx.lunched, ctx.used);
           if (!tr.notFit.length && tr.skipped.length === r.skipped.length) { picked = trial; r = tr; }
         }
       }
@@ -425,46 +442,77 @@
       return inPlan.indexOf(p.id) < 0 && !closedOn(p, arrive) && (p.visit || 45) + 10 <= free;
     }).sort(function (a, b) { return rank(b) - rank(a); }).slice(0, 5);
     var overBy = r.notFit.reduce(function (s, p) { return s + (p.visit || 45) + 8; }, 0);
-    var status = r.notFit.length ? "over" : free > 45 ? "free" : "right";
-    if (free >= 20) r.steps.push({ kind: "free", name: "Free time", start: r.endAt, end: new Date(leaveAt),
+    var steps = r.steps.slice();
+    if (free >= 20) steps.push({ kind: "free", name: "Free time" + (ctx.label ? " in " + ctx.label : ""), start: r.endAt, end: new Date(leaveAt),
       tip: suggestions.length ? "Ideas: " + suggestions.slice(0, 3).map(function (p) { return p.name + " (" + T.dur(p.visit || 45) + ")"; }).join(", ") : "Shop for pasalubong, take photos or rest at a café." });
     return {
-      steps: r.steps, endAt: r.endAt, endPoint: r.endPoint, skipped: r.skipped, notFit: r.notFit, pool: pool.list,
-      fit: { available: available, used: available - free, free: free, status: status, overBy: overBy, notFit: r.notFit, suggestions: suggestions },
+      steps: steps, endAt: r.endAt, endPoint: r.endPoint, skipped: r.skipped, notFit: r.notFit, pool: pool.list, lunched: r.lunched,
+      fit: { available: available, used: available - free, free: free, overBy: overBy, notFit: r.notFit, suggestions: suggestions },
     };
+  }
+
+  /* which stops go on which day: more stops than days → split in order;
+     fewer stops than days → a stop gets several days (new places each day) */
+  function assignStops(nStops, nDays) {
+    var out = [], d, i;
+    for (d = 0; d < nDays; d++) out.push([]);
+    if (nStops >= nDays) {
+      var base = Math.floor(nStops / nDays), extra = nStops % nDays, k = 0;
+      for (d = 0; d < nDays; d++) for (i = 0; i < base + (d < extra ? 1 : 0); i++) out[d].push(k++);
+    } else {
+      for (i = 0; i < nStops; i++) for (d = Math.floor(i * nDays / nStops); d < Math.floor((i + 1) * nDays / nStops); d++) out[d].push(i);
+    }
+    return out;
+  }
+  function lodgingTier(id) { return C.lodging.filter(function (l) { return l.id === id; })[0] || C.lodging[0]; }
+  function areaName(p) {
+    var c = T.dest.cityOf(p);
+    return c ? c.name : (p.area || p.name || "your last stop").split(",")[0];
+  }
+  function travFor(t) {
+    if (!t) return T.traveler();
+    var id = (C.travelerAliases || {})[t.id] || t.id;
+    return C.travelerTypes.filter(function (x) { return x.id === id; })[0] || t;
   }
 
   /* ---------- reminders ---------- */
   function reminders(plan, wx) {
     var out = [], opt = plan.option, trav = plan.traveler;
-    var dep = opt.depart;
+    var dep = opt.depart, home = plan.fromHome ? "home" : plan.from.name;
     var eve = new Date(dep); eve.setDate(eve.getDate() - 1); eve.setHours(20, 0, 0, 0);
-    if (eve > new Date()) out.push({ at: eve, icon: "bag", text: "Prepare tonight: charge your phone, pack water, snacks and an umbrella." });
-    out.push({ at: T.addMin(dep, -30), icon: "bell", text: "Get ready — leave " + plan.from.name + " in 30 minutes." });
-    out.push({ at: dep, icon: "route", text: "Time to go! " + (opt.legs[0] ? opt.legs[0].text + "." : "") });
+    if (eve > new Date()) out.push({ at: eve, icon: "bag", text: plan.nights ? "Pack tonight: clothes for " + plan.days.length + " days, toiletries, charger, ID and an umbrella." : "Prepare tonight: charge your phone, pack water, snacks and an umbrella." });
+    out.push({ at: T.addMin(dep, -30), icon: "bell", text: "Get ready — leave " + home + " in 30 minutes." });
+    out.push({ at: dep, icon: "route", text: "Time to leave " + home + "! " + (opt.legs[0] ? opt.legs[0].text + "." : "") });
+    if (plan.nights) out.push({ at: null, icon: "bed", text: "Book your " + plan.nights + " night" + (plan.nights > 1 ? "s" : "") + " of " + plan.lodging.label.toLowerCase() + " stay ahead, especially on weekends and holidays." });
+    var allLegs = opt.legs.concat(plan.back ? plan.back.legs : []);
+    plan.days.forEach(function (d) { d.steps.forEach(function (s) { if (s.kind === "ride") allLegs = allLegs.concat(s.ride.legs); }); });
     if (trav.id !== "regular") {
-      var saved = opt.legs.reduce(function (s, l) { return s + (l.saved || 0); }, 0) + (plan.back ? plan.back.legs.reduce(function (s, l) { return s + (l.saved || 0); }, 0) : 0);
-      out.push({ at: null, icon: "id", text: "Bring your " + trav.id_name + " — your " + trav.label.toLowerCase() + " discount saves about " + T.peso(saved) + " on fares" + (plan.fees.saved ? " and " + T.peso(plan.fees.saved) + " on entrance fees" : "") + "." });
+      var saved = allLegs.reduce(function (s, l) { return s + (l.saved || 0); }, 0);
+      out.push({ at: null, icon: "id", text: "Bring your " + trav.id_name + " — your discount saves about " + T.peso(saved) + " on fares" + (plan.fees.saved ? " and " + T.peso(plan.fees.saved) + " on entrance fees" : "") + "." });
     }
-    var allModes = opt.modes.concat(plan.back ? plan.back.modes : []);
+    var allModes = allLegs.map(function (l) { return l.mode; });
     if (allModes.indexOf("jeep") > -1 || allModes.indexOf("tricycle") > -1) out.push({ at: null, icon: "wallet", text: "Keep coins and small bills (₱20, ₱50) ready for jeepney and tricycle fares." });
     if (allModes.indexOf("lrt") > -1) out.push({ at: null, icon: "train", text: "Trains: buy a single-journey ticket at the station or load your beep card. Bags go through inspection." });
-    if (allModes.indexOf("bus") > -1) out.push({ at: null, icon: "bus", text: "Check the bus signboard before boarding and keep your ticket until you get off." });
-    if (opt.legs.some(function (l) { return l.approx; })) out.push({ at: null, icon: "info", text: "This route follows common commuter routes — confirm with drivers or terminal staff on the day." });
-    if (opt.legs.some(function (l) { return l.rush; })) out.push({ at: null, icon: "clock", text: "Part of your trip is during rush hour — we've added extra travel time." });
+    if (allModes.indexOf("bus") > -1) out.push({ at: null, icon: "bus", text: "Check where the bus is going on its signboard before boarding, and keep your ticket until you get off." });
+    if (allLegs.some(function (l) { return l.approx; })) out.push({ at: null, icon: "info", text: "Some rides follow common commuter routes — confirm with drivers or terminal staff on the day." });
+    if (allLegs.some(function (l) { return l.rush; })) out.push({ at: null, icon: "clock", text: "Part of your trip is during rush hour — we've added extra travel time." });
     var day = wx && T.weather.forDate(wx, dep);
     if (day && day.rain >= 40) out.push({ at: null, icon: "rain", text: "Rain is likely (" + day.rain + "%) — bring an umbrella or raincoat." });
     else if (day && day.max >= 33) out.push({ at: null, icon: "sun", text: "Hot day ahead (up to " + Math.round(day.max) + "°C) — bring water, a cap and sunscreen." });
-    var dest = plan.to.placeId && T.places.get(plan.to.placeId);
+    var dest = plan.stops[0].placeId && T.places.get(plan.stops[0].placeId);
     if (dest && !dest.hub) {
       var st = T.places.openState(dest, opt.arrive);
       if (st.known && !st.open) out.push({ at: null, icon: "clock", text: dest.name + " is closed when you arrive (" + T.time(opt.arrive) + ") — " + st.label.toLowerCase() + "." });
     }
-    var fit = plan.day.fit;
-    if (fit && fit.status === "over") out.push({ at: null, icon: "info", text: "Too many stops: " + fit.notFit.map(function (p) { return p.name; }).join(", ") + " won't fit before " + T.time(plan.leaveAt) + "." });
-    plan.day.skipped.forEach(function (s) { out.push({ at: null, icon: "info", text: s.place.name + " is skipped — " + s.why + "." }); });
-    plan.day.steps.forEach(function (s) {
-      if (s.kind === "visit") out.push({ at: T.addMin(s.start, -10), icon: "pin", text: "Next: " + s.name + " at " + T.time(s.start) + (s.tip ? " · " + s.tip : "") });
+    plan.days.forEach(function (d) {
+      var pre = plan.days.length > 1 ? "Day " + (d.index + 1) + ": " : "";
+      if (d.fit && d.fit.status === "over") out.push({ at: null, icon: "info", text: pre + "Too many stops — " + d.fit.notFit.map(function (p) { return p.name; }).join(", ") + " won't fit." });
+      d.skipped.forEach(function (s) { out.push({ at: null, icon: "info", text: pre + s.place.name + " is skipped — " + s.why + "." }); });
+      d.steps.forEach(function (s) {
+        if (s.kind === "visit") out.push({ at: T.addMin(s.start, -10), icon: "pin", text: "Next: " + s.name + " at " + T.time(s.start) + (s.tip ? " · " + s.tip : "") });
+        if (s.kind === "ride") out.push({ at: T.addMin(s.start, -15), icon: "route", text: "Leave for " + s.to.name + " at " + T.time(s.start) + ". " + (s.ride.legs[0] ? s.ride.legs[0].text + "." : "") });
+        if (s.kind === "stay") out.push({ at: T.addMin(s.start, -30), icon: "bed", text: "Check in soon: " + s.name + "." });
+      });
     });
     if (plan.back) out.push({ at: T.addMin(plan.back.depart, -20), icon: "home", text: "Leave for home at " + T.time(plan.back.depart) + " (20 min). " + (plan.back.legs[0] ? plan.back.legs[0].text + "." : "") });
     return out;
@@ -484,41 +532,173 @@
       var o = this.options(from, to, d, T.traveler(), 1);
       return o[0] || null;
     },
-    pool: function (to) { return poolFor(to).list; },
+    pool: function (to, used) { return poolFor(to, used).list; },
+    assignStops: assignStops,
+
+    /* input: { from, stops:[...] (or to), depart, traveler, pax, ret, homeBy, days, lodging,
+                activities, optionId, include: { dayIndex: [placeIds in order] } } */
     build: function (input) {
+      var self = this;
       var trav = input.traveler || T.traveler();
       var pax = input.pax || 1;
-      var opts = this.options(input.from, input.to, input.depart, trav, pax);
-      var option = opts.filter(function (o) { return o.id === input.optionId; })[0] || opts[0];
-      var leaveAt = new Date(input.depart);
+      var stops = (input.stops && input.stops.length ? input.stops : [input.to]).filter(Boolean);
+      var nDays = Math.max(1, Math.min(C.maxDays || 7, Number(input.days) || 1));
+      var tier = lodgingTier(input.lodging);
+      var actOn = input.activities !== false;
+      var include = input.include && typeof input.include === "object" && !Array.isArray(input.include) ? input.include : (Array.isArray(input.include) ? { 0: input.include } : null);
+      var depart = new Date(input.depart);
       var eh = T.hm(input.homeBy || "17:00");
-      leaveAt.setHours(Math.floor(eh / 60), eh % 60, 0, 0);
-      var leaveAdjusted = false;
-      if (leaveAt <= T.addMin(option.arrive, 60)) { leaveAt = T.addMin(option.arrive, 180); leaveAdjusted = true; }
-      var day = input.activities === false
-        ? { steps: [], endAt: option.arrive, endPoint: input.to, skipped: [], notFit: [], pool: [], fit: null }
-        : activities(input.to, option.arrive, leaveAt, trav, input.include);
+
+      var opts = this.options(input.from, stops[0], depart, trav, pax);
+      var option = opts.filter(function (o) { return o.id === input.optionId; })[0] || opts[0];
+      var hop = function (a, b, at) {
+        var list = self.options(pt(a), b, at, trav, pax);
+        var want = option.kind === "grab" || option.kind === "car" ? option.kind : null;
+        return (want ? list.filter(function (o) { return o.kind === want; })[0] : null) ||
+          list.filter(function (o) { return o.kind !== "grab" && o.kind !== "car"; })[0] || list[0];
+      };
+      var rideStep = function (o, to) {
+        return { kind: "ride", name: "Go to " + to.name, to: to, start: o.depart, end: o.arrive, ride: o, fare: o.fare, title: o.title };
+      };
+
+      var assign = assignStops(stops.length, nDays);
+      var used = {}, days = [], here = input.from, leaveAdjusted = false;
+      for (var d = 0; d < nDays; d++) {
+        var start = new Date(depart); start.setDate(depart.getDate() + d);
+        var end = new Date(start); end.setHours(Math.floor(eh / 60), eh % 60, 0, 0);
+        var dayStops = assign[d].map(function (i) { return stops[i]; });
+        var steps = [], skipped = [], pool = [], notFit = [], suggestions = [];
+        var fit = { available: 0, used: 0, free: 0, overBy: 0 };
+        var ctx = { used: used, lunched: false, home: input.from };
+        var incDay = include && include[d] ? include[d].slice() : null;
+        var taken = {};
+        var t = d === 0 ? option.arrive : start;
+        for (var si = 0; si < dayStops.length; si++) {
+          var stop = dayStops[si];
+          var sameAsLastNight = si === 0 && d > 0 && days[d - 1].stops.indexOf(stop) > -1;
+          if (!(d === 0 && si === 0) && !sameAsLastNight && dist(here, stop) > 0.6) {
+            var r = hop(here, stop, t);
+            var rs = rideStep(r, stop);
+            // long ride over lunchtime: eat before boarding
+            if (!ctx.lunched && mins(r.depart) >= 660 && mins(r.depart) < 840 && r.minutes >= 90) {
+              ctx.lunched = true; rs.cost = C.mealBudget[1];
+              rs.tip = "Long ride over lunchtime — buy lunch at the terminal before you board (about " + T.peso(C.mealBudget[1]) + ").";
+            }
+            steps.push(rs); t = r.arrive;
+          }
+          if (si === 0 && end <= T.addMin(t, 60)) { end = T.addMin(t, 180); leaveAdjusted = true; }
+          // share the rest of the day between this stop and the ones after it
+          var ahead = 0, prevP = stop;
+          for (var k = si + 1; k < dayStops.length; k++) {
+            var q = hop(prevP, dayStops[k], t);
+            ahead += q ? q.minutes : 60; prevP = dayStops[k];
+          }
+          var remaining = dayStops.length - si - 1;
+          var avail = (end - t) / 60000 - ahead;
+          var stopEnd = remaining ? T.addMin(t, Math.max(45, Math.round(avail / (remaining + 1)))) : new Date(end);
+          if (stopEnd > end) stopEnd = new Date(end);
+          var inc = null;
+          if (incDay) {
+            // each chosen place belongs to the stop of the day it is closest to (keeping the traveler's order)
+            inc = incDay.filter(function (id) {
+              var pl = T.places.get(id);
+              if (!pl || taken[id]) return false;
+              var best = dayStops.slice().sort(function (x, y) { return dist(x, pl) - dist(y, pl); })[0];
+              if (best !== stop) return false;
+              taken[id] = 1; return true;
+            });
+          }
+          ctx.label = dayStops.length > 1 || nDays > 1 ? stop.name : "";
+          var act;
+          if (actOn) act = activities(stop, t, stopEnd, trav, inc, ctx);
+          else {
+            var fm = Math.round((stopEnd - t) / 60000);
+            act = { steps: fm >= 20 ? [{ kind: "free", name: "Explore " + stop.name + " on your own", start: t, end: stopEnd }] : [], endAt: t, endPoint: stop, skipped: [], notFit: [], pool: [], lunched: false,
+              fit: { available: fm, used: fm, free: 0, overBy: 0, notFit: [], suggestions: [] } };
+          }
+          act.steps.forEach(function (s) { if (s.place && (s.kind === "visit" || s.kind === "meal")) used[s.place.id] = true; });
+          steps = steps.concat(act.steps);
+          ctx.lunched = act.lunched;
+          skipped = skipped.concat(act.skipped);
+          notFit = notFit.concat(act.fit.notFit || []);
+          suggestions = act.fit.suggestions || suggestions;
+          fit.available += act.fit.available; fit.used += act.fit.used; fit.free += act.fit.free; fit.overBy += act.fit.overBy;
+          act.pool.forEach(function (p) { if (pool.indexOf(p) < 0) pool.push(p); });
+          here = act.endPoint;
+          t = act.steps.length && act.steps[act.steps.length - 1].kind === "free" ? stopEnd : act.endAt;
+        }
+        if (actOn && !steps.some(function (s) { return s.kind === "visit"; })) {
+          // nothing new left to see here: point to nearby towns the traveler could add as a stop
+          var c0 = T.dest.cityOf(dayStops[0]) || {};
+          var near = T.dest.cities().filter(function (c) { return c.id !== c0.id && dist(c, dayStops[0]) < 45 && dist(c, input.from) > dist(c, dayStops[0]); })
+            .sort(function (a, b) { return dist(a, dayStops[0]) - dist(b, dayStops[0]); }).slice(0, 3).map(function (c) { return c.name; });
+          steps.forEach(function (s) {
+            if (s.kind === "free") s.tip = "You've seen the featured spots here. Relax, explore cafés and markets, or add another stop" + (near.length ? " — try " + near.join(", ") : "") + ".";
+          });
+        }
+        fit.notFit = notFit; fit.suggestions = suggestions;
+        fit.status = notFit.length ? "over" : fit.free > 45 ? "free" : "right";
+        var stay = null;
+        if (d < nDays - 1) {
+          var next = new Date(start); next.setDate(start.getDate() + 1);
+          var dayEnd = t > end ? t : end;
+          var rooms = Math.ceil(pax / 2);
+          stay = { kind: "stay", name: tier.label + " stay near " + areaName(here), tier: tier.id, start: dayEnd, end: next,
+            at: pt(here, areaName(here)), cost: Math.round(tier.room * rooms / pax), room: tier.room, rooms: rooms,
+            tip: tier.desc + " · about " + T.peso(tier.room) + " per room per night (sleeps 2)." };
+          steps.push(stay);
+        }
+        days.push({ index: d, date: start, start: d === 0 ? depart : start, end: end, stops: dayStops, steps: steps, skipped: skipped, pool: pool, fit: actOn ? fit : null, endPoint: here, stay: stay });
+      }
+      var leaveAt = days[days.length - 1].end;
       var back = null;
       if (input.ret) {
-        var bdep = input.activities === false ? leaveAt : new Date(leaveAt);
-        var bopts = this.options(pt(day.endPoint), input.from, bdep, trav, pax);
+        var bopts = this.options(pt(here), input.from, new Date(leaveAt), trav, pax);
         back = bopts.filter(function (o) { return o.kind === option.kind && (!option.rail || o.rail); })[0] || bopts[0];
       }
-      var fees = day.steps.reduce(function (acc, s) { acc.total += s.fee || 0; acc.saved += (s.feeReg || 0) - (s.fee || 0); return acc; }, { total: 0, saved: 0 });
-      var meals = day.steps.reduce(function (s, x) { return s + (x.cost || 0); }, 0);
-      var moves = day.steps.reduce(function (s, x) { return s + (x.move ? x.move.fare : 0); }, 0);
-      var fares = option.fare + (back ? back.fare : 0) + moves;
+      var fees = { total: 0, saved: 0 }, meals = 0, moves = 0, rides = 0, stayCost = 0, nights = nDays - 1;
+      days.forEach(function (dd) {
+        dd.steps.forEach(function (s) {
+          fees.total += s.fee || 0; fees.saved += (s.feeReg || 0) - (s.fee || 0);
+          if (s.kind === "meal") meals += s.cost || 0;
+          if (s.move) moves += s.move.fare || 0;
+          if (s.kind === "ride") { rides += s.fare || 0; meals += s.cost || 0; }
+          if (s.kind === "stay") stayCost += s.cost || 0;
+        });
+      });
+      meals += nights * tier.meals;
+      var fares = option.fare + (back ? back.fare : 0) + moves + rides;
+      var per = fares + fees.total + meals + stayCost;
       var plan = {
-        id: input.id || "t_" + T.uid(),
-        from: input.from, to: input.to, traveler: trav, pax: pax, ret: !!input.ret, homeBy: input.homeBy, leaveAt: leaveAt, leaveAdjusted: leaveAdjusted,
-        activitiesOn: input.activities !== false, include: input.include || null,
-        options: opts, option: option, back: back, day: day, fees: fees,
-        budget: { fares: fares, moves: moves, fees: fees.total, meals: meals, perPerson: fares + fees.total + meals, group: (fares + fees.total + meals) * pax },
+        v: 2, id: input.id || "t_" + T.uid(),
+        from: input.from, fromHome: !input.from.placeId, to: stops[stops.length - 1], stops: stops,
+        name: stops.map(function (s) { return s.name; }).join(" → "),
+        traveler: trav, pax: pax, ret: !!input.ret, homeBy: input.homeBy, leaveAt: leaveAt, leaveAdjusted: leaveAdjusted,
+        nights: nights, lodging: { id: tier.id, label: tier.label },
+        activitiesOn: actOn, include: include,
+        options: opts, option: option, back: back, days: days, fees: fees,
+        budget: { fares: fares, moves: moves + rides, fees: fees.total, meals: meals, stay: stayCost, perPerson: per, group: Math.round(per * pax) },
         createdAt: Date.now(),
       };
       plan.reminders = reminders(plan, input.weather);
       return plan;
     },
+
+    /* older saved trips (one day, one destination) → current shape */
+    normalize: function (t) {
+      if (!t) return t;
+      if (!t.days && t.day) {
+        t.days = [{ index: 0, date: t.option.depart, start: t.option.depart, end: t.leaveAt, stops: [t.to], steps: t.day.steps || [], skipped: t.day.skipped || [], pool: [], fit: t.day.fit || null, stay: null }];
+        delete t.day;
+      }
+      t.stops = t.stops || [t.to];
+      t.name = t.name || t.to.name;
+      t.nights = t.nights || 0;
+      t.fromHome = t.fromHome != null ? t.fromHome : !t.from.placeId;
+      t.traveler = travFor(t.traveler);
+      return t;
+    },
+    endTime: function (t) { return new Date(t.back ? t.back.arrive : t.leaveAt || t.option.arrive); },
 
     /* every step of a trip in order — used by live mode and checklists */
     steps: function (t) {
@@ -528,13 +708,18 @@
           target: l.to, ride: l.mode !== "walk", fare: l.fare, line: l.line };
       };
       t.option.legs.forEach(function (l, i) { out.push(leg(l, "o" + i)); });
-      t.day.steps.forEach(function (s, i) {
-        out.push({ key: "d" + i, type: s.kind, mode: s.kind, title: s.name, tip: [s.note, s.tip].filter(Boolean).join(" · "), start: new Date(s.start), end: new Date(s.end),
-          target: s.place ? { name: s.place.name, lat: s.place.lat, lng: s.place.lng } : null, place: s.place || null });
+      t.days.forEach(function (d) {
+        d.steps.forEach(function (s, i) {
+          var key = T.planner.stepKey(d.index, i);
+          if (s.kind === "ride") { s.ride.legs.forEach(function (l, j) { var x = leg(l, key + "l" + j); x.day = d.index; out.push(x); }); return; }
+          out.push({ key: key, day: d.index, type: s.kind, mode: s.kind, title: s.name, tip: [s.note, s.tip].filter(Boolean).join(" · "), start: new Date(s.start), end: new Date(s.end),
+            target: s.place ? { name: s.place.name, lat: s.place.lat, lng: s.place.lng } : s.at || null, place: s.place || null });
+        });
       });
       if (t.back) t.back.legs.forEach(function (l, i) { out.push(leg(l, "b" + i)); });
       return out;
     },
+    stepKey: function (day, i) { return day === 0 ? "d" + i : "d" + day + "_" + i; },
 
     /* Serialize for storage (Dates → ISO) and back */
     pack: function (plan) {
@@ -549,13 +734,13 @@
           else walk(x[k]);
         });
       })(o);
-      return o;
+      return T.planner.normalize(o);
     },
 
     /* Calendar file with alarms so phones remind you even when the app is closed */
     ics: function (plan) {
       var f = function (d) { d = new Date(d); return d.getUTCFullYear() + T.pad(d.getUTCMonth() + 1) + T.pad(d.getUTCDate()) + "T" + T.pad(d.getUTCHours()) + T.pad(d.getUTCMinutes()) + "00Z"; };
-      var escI = function (s) { return String(s).replace(/[\\;,]/g, function (c) { return "\\" + c; }).replace(/\n/g, "\\n"); };
+      var escI = function (s) { return String(s).replace(/[\;,]/g, function (c) { return "\\" + c; }).replace(/\n/g, "\\n"); };
       var ev = [];
       var add = function (start, end, title, desc, alarm) {
         ev.push(["BEGIN:VEVENT", "UID:" + plan.id + "-" + ev.length + "@tara", "DTSTAMP:" + f(new Date()), "DTSTART:" + f(start), "DTEND:" + f(end),
@@ -564,12 +749,19 @@
           .concat(["END:VEVENT"]).join("\r\n"));
       };
       var legsText = function (o) { return o.legs.map(function (l, i) { return (i + 1) + ". " + T.time(new Date(l.start)) + " " + l.text + (l.fare ? " (" + T.peso(l.fare) + ")" : ""); }).join("\n"); };
-      add(plan.option.depart, plan.option.arrive, "Travel to " + plan.to.name, legsText(plan.option), 30);
-      plan.day.steps.forEach(function (s) { if (s.kind !== "free") add(s.start, s.end, s.name, [s.note, s.tip].filter(Boolean).join(" · "), 10); });
-      if (plan.back) add(plan.back.depart, plan.back.arrive, "Head home to " + plan.from.name, legsText(plan.back), 20);
+      add(plan.option.depart, plan.option.arrive, "Leave home → " + plan.stops[0].name, legsText(plan.option), 30);
+      plan.days.forEach(function (d) {
+        d.steps.forEach(function (s) {
+          if (s.kind === "free") return;
+          if (s.kind === "ride") add(s.start, s.end, "Go to " + s.to.name, legsText(s.ride), 15);
+          else add(s.start, s.kind === "stay" ? T.addMin(new Date(s.start), 30) : s.end, s.name, [s.note, s.tip].filter(Boolean).join(" · "), 10);
+        });
+      });
+      if (plan.back) add(plan.back.depart, plan.back.arrive, "Head home", legsText(plan.back), 20);
       return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Tara//Trip Planner//EN", "CALSCALE:GREGORIAN"].concat(ev).concat(["END:VCALENDAR"]).join("\r\n");
     },
     modeName: modeName,
     legName: legName,
+    lodging: lodgingTier,
   };
 })();

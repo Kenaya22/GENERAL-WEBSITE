@@ -90,6 +90,24 @@
       "</svg>";
   };
 
+  /* ---------- Images: read a picked photo, shrink it, return a JPEG data URL ---------- */
+  T.readImage = function (file, max, quality) {
+    return new Promise(function (resolve, reject) {
+      if (!file || !/^image\//.test(file.type)) return reject(new Error("Please choose a photo."));
+      var url = URL.createObjectURL(file), img = new Image();
+      img.onload = function () {
+        var k = Math.min(1, (max || 800) / Math.max(img.width, img.height));
+        var c = document.createElement("canvas");
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/jpeg", quality || 0.8));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("That photo couldn't be opened.")); };
+      img.src = url;
+    });
+  };
+
   /* ---------- Toasts ---------- */
   T.toast = function (title, text, icon, tone) {
     var wrap = T.$(".toasts");
