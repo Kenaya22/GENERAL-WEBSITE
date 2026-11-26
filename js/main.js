@@ -192,10 +192,7 @@
   (function splash() {
     var el = $("#splash");
     if (!el) return;
-    var seen = false;
-    try { seen = sessionStorage.getItem("tara.splash") === "1"; } catch (e) {}
-    if (seen) { el.remove(); return; }
-    try { sessionStorage.setItem("tara.splash", "1"); } catch (e) {}
+    // shown every time the app opens or the page is reloaded (tap to skip)
     var stage = 0, timers = [];
     var go = function (n) {
       if (n <= stage) return;

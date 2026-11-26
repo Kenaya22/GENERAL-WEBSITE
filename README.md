@@ -47,7 +47,7 @@ Without this, accounts, trips and reviews stay on each phone. With it, they're o
 Older device-only accounts move online automatically the first time they log in. Older reviews saved on a phone stay visible on that phone.
 
 ### New in version 3
-- **Launch screens.** A loading screen, then the **K & A Studios** creator page, then the app (tap to skip; shown once per visit). There's also an About page made by K & A Studios.
+- **Launch screens.** A loading screen, then the **K & A Studios** creator page, then the app (tap to skip; shown every time the app opens). There's also an About page made by K & A Studios.
 - **Multi-day trips.** Pick *Day tour* or *Multi-day* (2–7 days). Each day has its own schedule with new places (no repeats), one lunch, and an overnight stay near where the day ends: Budget, Mid-range or Comfort, added to the budget. The last day ends with the trip home.
 - **Stopovers.** Tap **Add a stop** to chain destinations, e.g. Home → Intramuros → National Museum → Home. Stops can be moved up or down. The day's time is shared between stops, with the ride between each pair planned, and stops are spread over the days of a multi-day trip.
 - **Arrange your places.** **Edit places** lets you tick places and put them in your own order with up/down arrows; the planner follows that order.
