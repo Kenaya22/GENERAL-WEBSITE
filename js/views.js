@@ -1808,6 +1808,7 @@
     if (navigator.share) navigator.share({ title: "Pasalubong list", text: text }).catch(function () {});
     else if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { T.toast("List copied", "Paste it in Messenger or Viber.", "check"); });
   };
+  T.inputs.lang = function (el) { T.i18n.set(el.value); };
   T.inputs["trip-check"] = function (el) {
     var t = T.trips.get(T.router.parse().param);
     t.done = t.done || {};
@@ -1869,6 +1870,10 @@
             : '<p class="muted">On any trip plan, tap <b>Report real fare</b> under a ride to save what you actually paid and the signboard. Tara uses it next time, and you can share all your reports.</p>') + "</div>";
       })() +
       '<div class="card"><h3 class="h3">' + icon("sparkle") + " App</h3>" +
+      '<div class="field lang-field"><span class="field__label">' + icon("globe") + 'Language</span><div class="seg seg--2" role="radiogroup">' +
+      [["en", "English"], ["tl", "Tagalog"]].map(function (l) {
+        return '<label class="seg__opt"><input type="radio" name="lang" value="' + l[0] + '" data-input="lang"' + (T.i18n.lang() === l[0] ? " checked" : "") + '><span data-no-i18n>' + l[1] + "</span></label>";
+      }).join("") + "</div><p class=\"fine\" data-no-i18n>Buttons and menus switch language. Place descriptions stay in English for now.</p></div>" +
       '<label class="switch"><span><strong>' + icon("moon") + ' Dark mode</strong><small>Easier on the eyes at night</small></span><input type="checkbox" data-input="theme"' + (dark ? " checked" : "") + '><span class="switch__ui"></span></label>' +
       '<button class="pick-item" type="button" data-action="notif">' + icon("bell") + "<span><strong>Notifications</strong><small>" + (notif === "granted" ? "Allowed" : notif === "denied" ? "Blocked in browser settings" : notif === "unsupported" ? "Not supported on this browser" : "Tap to allow trip reminders") + "</small></span></button>" +
       '<button class="pick-item install-btn" type="button" data-action="install">' + icon("download") + "<span><strong>Install Tara</strong><small>Add to your home screen — works offline</small></span></button></div>" +

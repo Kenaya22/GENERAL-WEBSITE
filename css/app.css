@@ -1064,3 +1064,5 @@ svg.studio-mark--sm { width: 38px; height: 38px; filter: none; flex: none; }
 .alerts__item--bad { background: rgba(229,72,77,.1); }
 .alerts__item--bad .i { color: var(--danger); }
 .alerts__links { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.lang-field { margin-bottom: var(--s-3); }
