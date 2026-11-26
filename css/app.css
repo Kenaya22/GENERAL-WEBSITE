@@ -1348,3 +1348,5 @@ body.is-auth .ask-bubble, body.askpop-open .ask-bubble { display: none; }
 .wkend__idea > span { position: absolute; z-index: 1; left: 8px; right: 8px; bottom: 8px; }
 .wkend__idea strong { display: block; font-size: 12px; line-height: 1.25; }
 .wkend__idea small { font-size: 11px; opacity: .85; }
+.tl__warn { display: flex; gap: 6px; align-items: flex-start; margin: 6px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--accent-soft); color: var(--text); font-size: var(--fs-xs); line-height: 1.45; }
+.tl__warn .i { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--accent); }

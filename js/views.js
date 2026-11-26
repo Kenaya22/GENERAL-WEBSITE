@@ -1138,7 +1138,7 @@
         "<p>" + esc(T.planner.legName(l)) + " · " + T.dur(l.minutes) + (l.km > 0.2 ? " · " + T.km(l.km) : "") +
         (l.mode === "walk" ? "" : " · <b>" + (l.perCar ? T.peso(l.fareReg) + " per car" : l.fare ? T.peso(l.fare) : "—") + "</b>" + (l.saved > 0 ? ' <s class="muted">' + T.peso(l.fareReg) + "</s>" : "")) +
         (l.rush ? ' <span class="pill pill--warn">rush hour</span>' : "") + (l.reported ? ' <span class="pill pill--ok">' + icon("check") + "reported fare</span>" : "") + "</p>" +
-        (l.tip ? '<p class="tl__tip">' + esc(l.tip) + "</p>" : "") + reportBtn(l) +
+        (l.tip ? '<p class="tl__tip">' + esc(l.tip) + "</p>" : "") + (l.warn ? '<p class="tl__warn">' + icon("clock") + esc(l.warn) + "</p>" : "") + reportBtn(l) +
         (l.approx ? '<p class="tl__approx">' + icon("info") + "Common commuter route — confirm with the driver or terminal staff.</p>" : "") +
         (opts.check ? '<label class="tl__check"><input type="checkbox" data-input="trip-check" data-key="' + key + '"' + (done ? " checked" : "") + "><span>Done</span></label>" : "") +
         "</div></li>";
@@ -2019,7 +2019,7 @@
       "<h2>" + esc(cur.title) + "</h2>" +
       (cur.board ? '<p class="tl__board">' + icon("pin") + esc(cur.board) + "</p>" : "") +
       (cur.ride && tgt ? '<p class="live-getoff">' + icon("bell") + "<span>Get off at <b>" + esc(tgt.name) + "</b> — we'll alert you when it's near.</span></p>" : "") +
-      (cur.tip ? '<p class="tl__tip">' + esc(cur.tip) + "</p>" : "") +
+      (cur.tip ? '<p class="tl__tip">' + esc(cur.tip) + "</p>" : "") + (cur.warn ? '<p class="tl__warn">' + icon("clock") + esc(cur.warn) + "</p>" : "") +
       (cur.fare ? '<p class="live-fare">' + icon("wallet") + "<span>Fare: <b>" + T.peso(cur.fare) + "</b></span></p>" : "") +
       '<p class="live-dist" id="live-dist">' + (tgt ? icon("locate") + "Finding your location…" : "") + "</p>" +
       '<div class="live-actions"><button class="btn btn--primary btn--lg" type="button" data-action="live-done" data-key="' + cur.key + '">' + icon("check") + esc(doneLabel) + "</button>" +

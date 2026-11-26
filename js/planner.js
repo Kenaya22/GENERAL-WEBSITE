@@ -175,6 +175,29 @@
       return this.all().filter(function (r) { return r.key === k; }).pop() || null;
     },
   };
+  /* first / last trip check: warn when a ride starts outside usual service hours */
+  function serviceWindow(l) {
+    var S = TR.service || {};
+    if (l.mode === "lrt" || l.mode === "busway") return S[l.line] || null;
+    if (l.mode === "ferry") return l.hours || S.ferry;
+    return S[l.mode] || null;
+  }
+  function checkService(l) {
+    var w = serviceWindow(l);
+    delete l.warn;
+    if (!w || (w[0] === "00:00" && w[1] >= "23:59")) return;
+    var d = new Date(l.start), m = d.getHours() * 60 + d.getMinutes(), o = T.hm(w[0]), c = T.hm(w[1]);
+    var fmt = function (x) { var y = new Date(d); y.setHours(Math.floor(x / 60), x % 60, 0, 0); return T.time(y); };
+    var name = l.mode === "lrt" || l.mode === "busway" ? l.line : { tricycle: "tricycles", jeep: "jeepneys", bus: "buses", uv: "UV Express vans", p2p: "P2P buses" }[l.mode] || modeName[l.mode];
+    if (l.mode === "ferry") {
+      if (m > c) l.warn = "The boat usually leaves between " + fmt(o) + " and " + fmt(c) + " — leave home earlier so you make it.";
+      else if (m < o) l.warn = "Boats start around " + fmt(o) + " — you'll wait at the port.";
+      else if (m > c - 30) l.warn = "Boats stop around " + fmt(c) + " — be at the port early.";
+      return;
+    }
+    if (m < o) l.warn = "First " + name + " usually start around " + fmt(o) + " — you may wait, or take a Grab/taxi for this part.";
+    else if (m > c) l.warn = "Last " + name + " usually run until about " + fmt(c) + " — leave earlier, or take a Grab/taxi for this part.";
+  }
   function finalize(legs, depart, trav, pax) {
     var t = new Date(depart), fare = 0, fareReg = 0, carCost = 0;
     legs.forEach(function (l) {
@@ -194,6 +217,7 @@
       l.fareReg = Math.round(l.fareReg);
       l.fare = Math.round(l.fareReg * (1 - rate)); // fares are paid in whole pesos
       l.saved = l.fareReg - l.fare;
+      checkService(l);
       if (l.perCar) carCost += l.fareReg; else { fare += l.fare; fareReg += l.fareReg; }
     });
     var cars = Math.ceil(pax / 4);
@@ -203,6 +227,7 @@
       fare: Math.round(fare + perPersonCar),
       fareReg: Math.round(fareReg + perPersonCar),
       groupFare: Math.round(fare * pax + carCost * cars),
+      warns: legs.filter(function (l) { return l.warn; }).length,
       transfers: legs.filter(function (l) { return l.mode !== "walk"; }).length - 1,
       modes: legs.map(function (l) { return l.mode; }),
     };
@@ -258,7 +283,7 @@
   }
   function ferryLeg(a, b, f) {
     return { mode: "ferry", from: pt(a), to: pt(b), km: dist(a, b), ride: f.minutes, wait: 20, fareReg: f.fare || 0, approx: true,
-      text: "Take the boat to " + b.name, board: "Board at " + (f.port.name) + ".", tip: f.note };
+      hours: f.hours, text: "Take the boat to " + b.name, board: "Board at " + (f.port.name) + ".", tip: f.note };
   }
   function p2pLeg(r, rev) {
     var a = rev ? r.to : r.from, b = rev ? r.from : r.to;

@@ -311,6 +311,16 @@
 
   /* --- quick knowledge: app help and travel tips --- */
   var FAQ = [
+    [/\b(first|last|huling|unang) (trip|train|bus|byahe|biyahe|boat|ride)|operating hours|service hours|hanggang anong oras|until what time|what time (does|do) the (lrt|mrt|train|bus|carousel|p2p|boat)|\b(lrt|mrt|carousel|p2p|ferry|boat) (hours|schedule|sched)\b/, function () {
+      var S = C.transit.service, N = C.transit.serviceNotes, f = function (w) { return w[0] === "00:00" && w[1] >= "23:59" ? "24 hours" : T.time(new Date("2000-01-01T" + w[0])) + " – " + T.time(new Date("2000-01-01T" + w[1])); };
+      return { html: para("Usual first and last trips:") + '<ul class="ask-ul">' +
+        ["LRT-1", "LRT-2", "MRT-3", "EDSA Carousel"].map(function (k) { return "<li><b>" + k + "</b>: " + f(S[k]) + "</li>"; }).join("") +
+        "<li><b>P2P buses</b>: about " + f(S.p2p) + " — " + esc(N.p2p) + "</li>" +
+        "<li><b>Provincial buses</b>: " + esc(N.bus) + "</li>" +
+        "<li><b>Jeepneys</b>: about " + f(S.jeep) + "; <b>tricycles</b> " + f(S.tricycle) + " (fewer late at night)</li>" +
+        "<li><b>Island boats</b>: " + esc(N.ferry) + "</li></ul>" +
+        para('<small class="muted">Hours change on holidays and during maintenance — Tara warns you in a plan when a ride falls outside them.</small>') };
+    }],
     [/\b(how (to|do i) use (tara|the app|this)|what is tara|ano ang tara|paano gamitin|guide|tutorial|how does (tara|this app|it) work|how to use)\b/, function () {
       return { html: para("<b>Tara</b> is your travel buddy: find places per city, plan the commute (what to ride, signboards, fares with discounts), get a day schedule and budget, then save the trip and follow it live.") +
         para("Quick start: set your location on Home → explore places → tap the orange <b>Plan</b> button → save the trip → tap <b>Start live trip</b> on the day.") +
