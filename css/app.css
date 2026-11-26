@@ -981,3 +981,8 @@ textarea.input { resize: vertical; min-height: 100px; }
 .home-by b { color: var(--text); }
 .home-by--late { background: rgba(229,72,77,.08); }
 .home-by--late > .i { color: var(--danger); }
+
+/* K & A Studios logo (svg) */
+svg.studio-mark { display: block; width: 116px; height: 116px; background: none; border-radius: 0; box-shadow: none; filter: drop-shadow(0 0 1.5px rgba(251,245,234,.55)) drop-shadow(0 18px 30px rgba(0,0,0,.35)); }
+svg.studio-mark--sm { width: 38px; height: 38px; filter: none; flex: none; }
+.about__logo { width: 200px; height: 200px; border-radius: var(--r-lg); margin: -10px 0 -20px; }

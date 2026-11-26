@@ -399,7 +399,7 @@
       '<div class="trip-grid">' + C.dayTrips.map(function (id) { return dayTripCard(T.places.get(id), here); }).join("") + "</div></section>" +
       cafeSection(here, curCity) +
       '<section class="section">' + discountCard() + "</section>" +
-      '<a class="made-by" href="#/about"><span class="studio-mark studio-mark--sm" aria-hidden="true"><span>K</span><i>&amp;</i><span>A</span></span><span>Made with love by <b>K &amp; A Studios</b></span>' + icon("chev-r") + "</a>";
+      '<a class="made-by" href="#/about"><svg class="studio-mark studio-mark--sm" aria-hidden="true"><use href="#i-ka"/></svg><span>Made with love by <b>K &amp; A Studios</b></span>' + icon("chev-r") + "</a>";
     mount(html, { nav: "home" });
     startFeature();
 
@@ -1555,7 +1555,7 @@
       '<div class="result__actions result__actions--tight">' + (u.guest ? '<a class="btn btn--primary btn--sm" href="#/signup">Create account</a>' : "") +
       '<button class="btn btn--ghost btn--sm" type="button" data-action="logout">' + icon("logout") + (u.guest ? "Exit guest mode" : "Log out") + "</button>" +
       '<button class="btn btn--ghost btn--sm danger" type="button" data-action="wipe">' + icon("trash") + "Delete my data</button></div></div>" +
-      '<a class="made-by" href="#/about"><span class="studio-mark studio-mark--sm" aria-hidden="true"><span>K</span><i>&amp;</i><span>A</span></span><span>Tara is made by <b>K &amp; A Studios</b></span>' + icon("chev-r") + "</a>" +
+      '<a class="made-by" href="#/about"><svg class="studio-mark studio-mark--sm" aria-hidden="true"><use href="#i-ka"/></svg><span>Tara is made by <b>K &amp; A Studios</b></span>' + icon("chev-r") + "</a>" +
       '<p class="fine center">Map data © OpenStreetMap contributors · Weather by Open-Meteo · Photos via Wikipedia</p>';
     mount(html, { nav: "profile" });
   };
@@ -1743,7 +1743,7 @@
   T.views.about = function () {
     mount(pageHead("About", { back: true }) +
       '<div class="about card">' +
-      '<div class="studio-mark studio-mark--xl" aria-hidden="true"><span>K</span><i>&amp;</i><span>A</span></div>' +
+      '<img class="about__logo" src="icons/ka-logo.svg" alt="K & A Studios logo" width="220" height="220">' +
       "<h2>K &amp; A Studios</h2><p class=\"muted\">Creators of Tara</p>" +
       "<p>Tara is a travel buddy for Filipino commuters and travelers — find places, plan the ride with real signboards and fares, and enjoy a day trip or a few days away without the guesswork.</p>" +
       '<ul class="about__list"><li>' + icon("route") + "Commute plans with student, senior &amp; PWD discounts</li><li>" + icon("calendar") + "Day tours and multi-day trips with stopovers</li><li>" + icon("chat") + "Reviews and photos from fellow travelers</li></ul>" +
