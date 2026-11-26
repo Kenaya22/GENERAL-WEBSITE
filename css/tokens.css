@@ -1,127 +1,121 @@
 /* ==========================================================================
-   DESIGN TOKENS — the single theme layer.
-   Rebrand the entire site by editing this file only:
-   colors, font pairing, spacing scale, radii, shadows and motion curves.
+   TARA — DESIGN TOKENS (single theme layer)
+   Change colors, fonts, spacing, radii and motion here to rebrand the app.
    ========================================================================== */
-
 :root {
-  /* ---- Brand palette (raw values) ---------------------------------------- */
-  --c-wine-950: #12060a;
-  --c-wine-900: #1c0a0f;
-  --c-wine-850: #240d14;
-  --c-wine-800: #2e1018;
-  --c-wine-700: #431823;
-  --c-wine-600: #5e2131;
-  --c-cream-50:  #fbf7f0;
-  --c-cream-100: #f4ecdf;
-  --c-cream-200: #e9dcc8;
-  --c-cream-300: #d9c7aa;
-  --c-gold-300: #f0cd85;
-  --c-gold-400: #e4b45c;
-  --c-gold-500: #c9943a;
-  --c-coral-300: #f1b29c;
-  --c-coral-400: #e48f76;
-  --c-ink-900: #1a1214;
+  /* palette */
+  --sea-950: #071f21;
+  --sea-900: #0b2b2d;
+  --sea-850: #0f3537;
+  --sea-800: #123f41;
+  --sea-700: #175153;
+  --sea-600: #1d6b6b;
+  --sea-500: #24868a;
+  --sea-300: #7cc3c0;
+  --sand-50:  #fffbf4;
+  --sand-100: #fbf5ea;
+  --sand-200: #f3e9d7;
+  --sand-300: #e6d6bb;
+  --sun-300: #ffc08f;
+  --sun-400: #ff9a5c;
+  --sun-500: #f57a3d;
+  --sun-600: #dc6226;
+  --mango-400: #ffc24b;
+  --leaf-500: #2fa36b;
+  --rose-500: #e5484d;
+  --ink-900: #14211f;
 
-  /* ---- Typography --------------------------------------------------------- */
-  --font-display: "Bodoni Moda", "Playfair Display", "Didot", Georgia, serif;
+  /* category hues (cards, pins, chips) */
+  --cat-food: #f57a3d;
+  --cat-cafe: #a86b3c;
+  --cat-mall: #7b5cd6;
+  --cat-park: #2fa36b;
+  --cat-heritage: #b8862b;
+  --cat-museum: #c2557a;
+  --cat-church: #4f7cc9;
+  --cat-resort: #1ea5b5;
+  --cat-theme: #e0457b;
+  --cat-market: #d08a1f;
+  --cat-other: #6b7b7a;
+
+  /* type */
+  --font-display: "Fraunces", "Georgia", serif;
   --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: clamp(1.35rem, 1.2rem + 0.6vw, 1.6rem);
+  --fs-2xl: clamp(1.75rem, 1.4rem + 1.6vw, 2.5rem);
+  --fs-3xl: clamp(2.2rem, 1.6rem + 3vw, 3.6rem);
 
-  --fs-micro: 0.6875rem;   /* 11px — small caps labels */
-  --fs-small: 0.8125rem;   /* 13px */
-  --fs-body: 1rem;         /* 16px */
-  --fs-lead: clamp(1.0625rem, 0.98rem + 0.4vw, 1.25rem);
-  --fs-h3: clamp(1.25rem, 1.1rem + 0.6vw, 1.6rem);
-  --fs-h2: clamp(2.1rem, 1.4rem + 3.2vw, 4rem);
-  --fs-h1: clamp(2.9rem, 1.6rem + 6.4vw, 7.25rem);
-  --fs-mega: clamp(4.5rem, 2.5rem + 9vw, 10rem);
+  /* spacing */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-7: 32px; --s-8: 40px; --s-9: 56px; --s-10: 72px;
+  --gutter: 16px;
+  --content: 1120px;
 
-  --tracking-caps: 0.22em;
-  --tracking-brand: 0.3em;
+  /* radii */
+  --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-xl: 28px; --r-pill: 999px;
 
-  /* ---- Spacing scale (4px base) ----------------------------------------- */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-  --space-7: 3rem;
-  --space-8: 4rem;
-  --space-9: 6rem;
-  --space-10: 8rem;
-  --gutter: clamp(1rem, 0.5rem + 2.5vw, 2.5rem);
-  --section-y: clamp(4.5rem, 3rem + 6vw, 8.5rem);
-  --container: 1240px;
-
-  /* ---- Radii ------------------------------------------------------------- */
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
-  --radius-xl: 32px;
-  --radius-pill: 999px;
-
-  /* ---- Motion ------------------------------------------------------------ */
+  /* motion */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --dur-fast: 160ms;
-  --dur-base: 320ms;
-  --dur-slow: 700ms;
+  --t-fast: 150ms; --t-base: 280ms; --t-slow: 600ms;
 
-  /* ---- Layout chrome ----------------------------------------------------- */
-  --appbar-h: 68px;
-  --bottombar-h: 66px;
+  /* chrome */
+  --header-h: 60px;
+  --tabbar-h: 68px;
+  --sidebar-w: 248px;
+  --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
+@media (min-width: 640px) { :root { --gutter: 24px; } }
 
-/* ==========================================================================
-   SEMANTIC SURFACES
-   Dark is the default brand surface. Every section is a "band":
-   .band--a follows the chosen theme, .band--b is its inverse, which gives
-   the alternating light / dark rhythm in either mode.
-   .surface-dark / .surface-light force a surface regardless of theme.
-   ========================================================================== */
-
-html,
-html[data-theme="dark"],
-html[data-theme="light"] .band--b,
-.surface-dark {
-  --bg: var(--c-wine-900);
-  --bg-elev: var(--c-wine-800);
-  --bg-sunken: var(--c-wine-950);
-  --text: var(--c-cream-50);
-  --text-muted: rgba(251, 247, 240, 0.66);
-  --text-faint: rgba(251, 247, 240, 0.42);
-  --line: rgba(251, 247, 240, 0.14);
-  --line-strong: rgba(251, 247, 240, 0.32);
-  --accent: var(--c-gold-400);
-  --accent-strong: var(--c-gold-300);
-  --accent-ink: var(--c-wine-950);
-  --chip-bg: rgba(251, 247, 240, 0.08);
-  --glass: rgba(28, 10, 15, 0.62);
-  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 40px -18px rgba(0, 0, 0, 0.7);
-  --shadow-pop: 0 30px 70px -20px rgba(0, 0, 0, 0.75);
-  color-scheme: dark;
+/* ---- light (default) ---- */
+:root,
+:root[data-theme="light"] {
+  --bg: var(--sand-100);
+  --bg-elev: #ffffff;
+  --bg-sunken: var(--sand-200);
+  --bg-inverse: var(--sea-900);
+  --text: var(--ink-900);
+  --text-2: rgba(20, 33, 31, 0.68);
+  --text-3: rgba(20, 33, 31, 0.46);
+  --line: rgba(20, 33, 31, 0.1);
+  --line-2: rgba(20, 33, 31, 0.2);
+  --brand: var(--sea-700);
+  --brand-ink: #ffffff;
+  --accent: var(--sun-500);
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(245, 122, 61, 0.12);
+  --brand-soft: rgba(23, 81, 83, 0.09);
+  --success: var(--leaf-500);
+  --danger: var(--rose-500);
+  --glass: rgba(251, 245, 234, 0.82);
+  --shadow-1: 0 1px 2px rgba(11, 43, 45, 0.06), 0 6px 18px -8px rgba(11, 43, 45, 0.18);
+  --shadow-2: 0 24px 60px -20px rgba(11, 43, 45, 0.35);
+  color-scheme: light;
 }
 
-html[data-theme="light"],
-html[data-theme="dark"] .band--b,
-.surface-light {
-  --bg: var(--c-cream-100);
-  --bg-elev: var(--c-cream-50);
-  --bg-sunken: var(--c-cream-200);
-  --text: var(--c-ink-900);
-  --text-muted: rgba(26, 18, 20, 0.66);
-  --text-faint: rgba(26, 18, 20, 0.44);
-  --line: rgba(26, 18, 20, 0.12);
-  --line-strong: rgba(26, 18, 20, 0.3);
-  --accent: var(--c-wine-600);
-  --accent-strong: var(--c-wine-700);
-  --accent-ink: var(--c-cream-50);
-  --chip-bg: rgba(94, 33, 49, 0.07);
-  --glass: rgba(251, 247, 240, 0.72);
-  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 18px 40px -22px rgba(67, 24, 35, 0.35);
-  --shadow-pop: 0 30px 70px -24px rgba(67, 24, 35, 0.45);
-  color-scheme: light;
+/* ---- dark ---- */
+:root[data-theme="dark"] {
+  --bg: var(--sea-950);
+  --bg-elev: var(--sea-900);
+  --bg-sunken: #051617;
+  --bg-inverse: var(--sand-100);
+  --text: var(--sand-50);
+  --text-2: rgba(255, 251, 244, 0.7);
+  --text-3: rgba(255, 251, 244, 0.46);
+  --line: rgba(255, 251, 244, 0.1);
+  --line-2: rgba(255, 251, 244, 0.2);
+  --brand: var(--sea-300);
+  --brand-ink: var(--sea-950);
+  --accent: var(--sun-400);
+  --accent-ink: var(--sea-950);
+  --accent-soft: rgba(255, 154, 92, 0.14);
+  --brand-soft: rgba(124, 195, 192, 0.12);
+  --glass: rgba(7, 31, 33, 0.82);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 20px -10px rgba(0, 0, 0, 0.6);
+  --shadow-2: 0 24px 60px -20px rgba(0, 0, 0, 0.75);
+  color-scheme: dark;
 }

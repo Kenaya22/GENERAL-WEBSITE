@@ -1,296 +1,157 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Hari ng Kalsada — King of the Road</title>
-  <meta name="description" content="Rides, routes, garages and gear for everyone on the Philippine road. Install it as an app on your phone or desktop." />
-  <meta name="theme-color" content="#1c0a0f" />
-  <meta name="color-scheme" content="dark light" />
-
-  <!-- Installable app (PWA) -->
+  <title>Tara — Philippine Travel Guide</title>
+  <meta name="description" content="Find restaurants, malls, parks and things to do near you, and plan commutes with fares, student/PWD/senior discounts and reminders." />
+  <meta name="theme-color" content="#175153" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/favicon.svg" type="image/svg+xml" />
-  <link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Hari" />
-
-  <!-- Social preview -->
-  <meta property="og:title" content="Hari ng Kalsada — King of the Road" />
-  <meta property="og:description" content="Rides, routes, garages and gear for everyone on the Philippine road." />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Tara" />
+  <meta property="og:title" content="Tara — Philippine Travel Guide" />
+  <meta property="og:description" content="Places near you, commute plans with fares and discounts, reminders — in one app." />
   <meta property="og:image" content="icons/icon-512.png" />
-
-  <!-- Theme before paint (no flash) -->
   <script>
     (function () {
-      var t = "dark";
-      try { t = localStorage.getItem("hnk.theme") || t; } catch (e) {}
+      var t = null;
+      try { t = localStorage.getItem("tara.theme"); } catch (e) {}
+      if (!t) t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
       document.documentElement.setAttribute("data-theme", t);
-      document.documentElement.classList.add("js");
     })();
   </script>
-
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500..700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
   <link rel="stylesheet" href="css/tokens.css" />
-  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/app.css" />
 </head>
 <body>
-  <!-- Icon sprite -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <defs>
-      <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 18h18l-1.6-10.2-4.9 4.3L12 5l-2.5 7.1-4.9-4.3L3 18z" fill="currentColor"/><rect x="3" y="19.5" width="18" height="1.8" rx=".9" fill="currentColor"/></symbol>
-      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
-      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="currentColor"/><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></g></symbol>
-      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="currentColor"/></symbol>
-      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5v11m0 0 4.5-4.5M12 14.5 7.5 10M4.5 16.5v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <!-- stroke icons: 24x24 -->
+      <symbol id="i-logo" viewBox="0 0 48 48"><path d="M24 3.5c-8.6 0-15.5 6.8-15.5 15.3C8.5 30.4 24 44.5 24 44.5s15.5-14.1 15.5-25.7C39.5 10.3 32.6 3.5 24 3.5z" fill="currentColor"/><path d="M17.2 21.4a6.8 6.8 0 0 1 13.6 0z" fill="#fff"/><path d="M14.5 22.8h19" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M18 26.4c1.6-1 3-1 4.5 0s3 1 4.5 0" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 10.5 12 3.5l8.5 7V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+      <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m15.6 8.4-2.1 5.1-5.1 2.1 2.1-5.1z" fill="currentColor"/></symbol>
+      <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="6" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 18H16a3 3 0 0 0 0-6H8a3 3 0 0 1 0-6h7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v2a2.5 2.5 0 0 0 0 5v2a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-2a2.5 2.5 0 0 0 0-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14.5 6v12" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2"/></symbol>
+      <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.8-6.5-11a6.5 6.5 0 0 1 13 0c0 5.2-6.5 11-6.5 11z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.4" fill="currentColor"/></symbol>
+      <symbol id="i-locate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.3" fill="currentColor"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
       <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
       <symbol id="i-heart-fill" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
-      <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-5.5H9v5.5H5.5A1.5 1.5 0 0 1 4 19z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
-      <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m15.5 8.5-2 5-5 2 2-5z" fill="currentColor"/></symbol>
-      <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 18.5h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
-      <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
-      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4.5 12h15m0 0-5.5-5.5M19.5 12 14 17.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" fill="currentColor"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="17" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 12.5h4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M5.5 6.5 15 3.8a1.5 1.5 0 0 1 1.9 1.1l.4 1.6" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+      <symbol id="i-walk" viewBox="0 0 24 24"><circle cx="13" cy="4.5" r="1.9" fill="currentColor"/><path d="m9.5 21 2.2-6.2 2.8 2.7V21M8 11.5 10.5 8l3 .5 2 3.5 2.5 1M11.7 14.8 13 8.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-jeep" viewBox="0 0 24 24"><path d="M2.5 15.5V10l2-3.5h13l2 3.5 2 1v4.5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M6 6.5V4.5h9v2M5 10h4M10.5 10h4M16 10h2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="7" cy="17" r="1.9" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="17" cy="17" r="1.9" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+      <symbol id="i-tricycle" viewBox="0 0 24 24"><circle cx="5.5" cy="17" r="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="18.5" cy="17" r="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M5.5 17 9 10h4l2.5 7M9 10 8 7.5H6M13 10h3.5a2 2 0 0 1 2 2v5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 6.5h6v4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+      <symbol id="i-bus" viewBox="0 0 24 24"><rect x="4.5" y="3.5" width="15" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 10.5h15M8 17.5v2.5M16 17.5v2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="14" r="1" fill="currentColor"/><circle cx="16" cy="14" r="1" fill="currentColor"/></symbol>
+      <symbol id="i-train" viewBox="0 0 24 24"><rect x="5.5" y="3" width="13" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 10h13M8 21l2-3.5M16 21l-2-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="9" cy="13.6" r="1" fill="currentColor"/><circle cx="15" cy="13.6" r="1" fill="currentColor"/></symbol>
+      <symbol id="i-car" viewBox="0 0 24 24"><path d="M4 16.5v-4l2-5h12l2 5v4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M4 12.5h16" stroke="currentColor" stroke-width="1.6"/><circle cx="7.5" cy="17.5" r="1.8" fill="currentColor"/><circle cx="16.5" cy="17.5" r="1.8" fill="currentColor"/></symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15zM10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
       <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3.5v12M12 3.5 7.5 8M12 3.5 16.5 8M5 12.5v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-      <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.8-6.5-11a6.5 6.5 0 0 1 13 0c0 5.2-6.5 11-6.5 11z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.3" fill="currentColor"/></symbol>
-      <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m4 7 8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
-      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
-      <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4.5 6.5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10l-4.5 3.5v-3.5h0a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
-      <symbol id="i-ios-share" viewBox="0 0 24 24"><path d="M12 14V3.5m0 0L8.5 7M12 3.5 15.5 7M8 10.5H6.5A1.5 1.5 0 0 0 5 12v7a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-7a1.5 1.5 0 0 0-1.5-1.5H16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-      <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="12" cy="5.5" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="18.5" r="1.7" fill="currentColor"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4.5 12h15m0 0-5.5-5.5M19.5 12 14 17.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+      <symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 4v16m0 0-3.5-3.5M7 20l3.5-3.5M17 20V4m0 0-3.5 3.5M17 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></g></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="currentColor"/></symbol>
+      <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5a4.5 4.5 0 0 1-.5-9 6 6 0 0 1 11.5 1.5 3.8 3.8 0 0 1-.5 7.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+      <symbol id="i-cloud-sun" viewBox="0 0 24 24"><circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 2.5v1.2M2.5 8h1.2M4.1 4.1l.9.9M11.9 4.1l-.9.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M9 19.5a3.8 3.8 0 0 1-.4-7.6 5 5 0 0 1 9.6 1.3 3.2 3.2 0 0 1-.4 6.3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+      <symbol id="i-rain" viewBox="0 0 24 24"><path d="M7 15a4.5 4.5 0 0 1-.5-9 6 6 0 0 1 11.5 1.5A3.8 3.8 0 0 1 17.5 15z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m8 18-1 2.5M12 18l-1 2.5M16 18l-1 2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <symbol id="i-storm" viewBox="0 0 24 24"><path d="M7 15a4.5 4.5 0 0 1-.5-9 6 6 0 0 1 11.5 1.5A3.8 3.8 0 0 1 17.5 15z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m12.5 14-2 3.5h3l-2 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5v11m0 0 4.5-4.5M12 14.5 7.5 10M4.5 16.5v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14.5 4.5h-8a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8M10.5 12h10m0 0-3.5-3.5M20.5 12 17 15.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-map" viewBox="0 0 24 24"><path d="M3.5 6.5 9 4l6 2.5L20.5 4v13.5L15 20l-6-2.5L3.5 20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 4v13.5M15 6.5V20" stroke="currentColor" stroke-width="1.6"/></symbol>
+      <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6.5h11M9 12h11M9 17.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="4.8" cy="6.5" r="1.2" fill="currentColor"/><circle cx="4.8" cy="12" r="1.2" fill="currentColor"/><circle cx="4.8" cy="17.5" r="1.2" fill="currentColor"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="7.8" r="1.2" fill="currentColor"/></symbol>
+      <symbol id="i-id" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="8.5" cy="11" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 16c.6-1.4 1.6-2 3-2s2.4.6 3 2M14 10h4.5M14 13.5h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4.5 19.5 5.3 15.6 15.8 5.1a2 2 0 0 1 2.9 0l.2.2a2 2 0 0 1 0 2.9L8.4 18.7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><path d="M6.5 3.5h3l1.5 4-2 1.5a11 11 0 0 0 6 6l1.5-2 4 1.5v3a2 2 0 0 1-2 2A16 16 0 0 1 4.5 5.5a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 12h17M12 3.2c2.5 2.6 3.6 5.5 3.6 8.8s-1.1 6.2-3.6 8.8C9.5 18.2 8.4 15.3 8.4 12S9.5 5.8 12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+      <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3.5 13.8 10.2 20.5 12l-6.7 1.8L12 20.5l-1.8-6.7L3.5 12l6.7-1.8z" fill="currentColor"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+      <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M2.5 19.5a6.5 6.5 0 0 1 13 0M16 5.2a3.5 3.5 0 0 1 0 6.6M18 14a6.5 6.5 0 0 1 3.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+      <!-- categories -->
+      <symbol id="i-utensils" viewBox="0 0 24 24"><path d="M6.5 3v7.5a2 2 0 0 0 2 2V21M10.5 3v7.5a2 2 0 0 1-2 2M8.5 3v6M17 21V3c-2.2 1.2-3.5 3.6-3.5 7v3.5H17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M4.5 9.5h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5zM16.5 11h1.5a2.5 2.5 0 0 1 0 5h-1.8M8 3.5c-.8 1 .8 2-.1 3M11.5 3.5c-.8 1 .8 2-.1 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5 8h14l-1 12.5H6zM9 8V6.5a3 3 0 0 1 6 0V8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+      <symbol id="i-tree" viewBox="0 0 24 24"><path d="M12 21v-6M12 3 6.5 10.5h3L5 16h14l-4.5-5.5h3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+      <symbol id="i-castle" viewBox="0 0 24 24"><path d="M4 20.5V8h2.5v2H9V8h2.5v2h1V8H15v2h2.5V8H20v12.5zM10 20.5v-4a2 2 0 0 1 4 0v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+      <symbol id="i-columns" viewBox="0 0 24 24"><path d="M3.5 9 12 4l8.5 5zM5 20.5h14M6.5 11v7M10 11v7M14 11v7M17.5 11v7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+      <symbol id="i-church" viewBox="0 0 24 24"><path d="M12 2.5v4M10 4.5h4M7 20.5V11l5-4 5 4v9.5M4 20.5v-6l3-2M20 20.5v-6l-3-2M10 20.5v-4a2 2 0 0 1 4 0v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+      <symbol id="i-waves" viewBox="0 0 24 24"><path d="M3 15c2 0 2-1.5 4.5-1.5S9.5 15 12 15s2-1.5 4.5-1.5S18.5 15 21 15M3 19.5c2 0 2-1.5 4.5-1.5S9.5 19.5 12 19.5s2-1.5 4.5-1.5 2 1.5 4.5 1.5M8.5 10.5c0-2 1-3 1-4.5M12 10.5c0-2 1-3 1-4.5M15.5 10.5c0-2 1-3 1-4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+      <symbol id="i-ferris" viewBox="0 0 24 24"><circle cx="12" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 3.5v13M5.5 10h13M7.4 5.4l9.2 9.2M16.6 5.4l-9.2 9.2M8 21l4-4.5 4 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+      <symbol id="i-basket" viewBox="0 0 24 24"><path d="M3.5 10h17l-2 10h-13zM8 10l3-6M16 10l-3-6M9 13.5v3.5M12 13.5v3.5M15 13.5v3.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></symbol>
     </defs>
   </svg>
 
-  <a class="skip-link" href="#main">Skip to content</a>
-
-  <!-- ===================== TOP APP BAR ===================== -->
-  <header class="appbar" id="appbar">
-    <nav class="appbar__nav" aria-label="Primary" data-slot="nav"></nav>
-
-    <a class="brand" href="#home" aria-label="Home">
-      <svg class="brand__crown" aria-hidden="true"><use href="#i-crown"/></svg>
-      <span class="brand__text">
-        <span class="brand__name" data-slot="brand-name">Hari ng Kalsada</span>
-        <span class="brand__tag" data-slot="brand-tag">King of the Road</span>
-      </span>
-    </a>
-
-    <div class="appbar__actions">
-      <button class="icon-btn" type="button" data-action="search" aria-label="Search (press /)">
-        <svg aria-hidden="true"><use href="#i-search"/></svg>
+  <div class="app" id="app">
+    <!-- Desktop sidebar / Mobile tab bar share the same nav -->
+    <nav class="nav" id="nav" aria-label="Main">
+      <a class="nav__brand" href="#/home" aria-label="Tara home">
+        <svg class="logo" aria-hidden="true"><use href="#i-logo"/></svg>
+        <span><strong>Tara</strong><small>Travel buddy</small></span>
+      </a>
+      <a class="nav__item" href="#/home" data-nav="home">
+        <svg class="i" aria-hidden="true"><use href="#i-home"/></svg><span>Home</span>
+      </a>
+      <a class="nav__item" href="#/explore" data-nav="explore">
+        <svg class="i" aria-hidden="true"><use href="#i-compass"/></svg><span>Explore</span>
+      </a>
+      <a class="nav__item nav__item--plan" href="#/plan" data-nav="plan">
+        <span class="nav__fab"><svg class="i" aria-hidden="true"><use href="#i-route"/></svg></span><span>Plan</span>
+      </a>
+      <a class="nav__item" href="#/trips" data-nav="trips">
+        <svg class="i" aria-hidden="true"><use href="#i-ticket"/></svg><span>Trips</span>
+        <span class="nav__badge" data-trips-badge hidden></span>
+      </a>
+      <a class="nav__item" href="#/profile" data-nav="profile">
+        <svg class="i" aria-hidden="true"><use href="#i-user"/></svg><span>Profile</span>
+      </a>
+      <button class="nav__install install-btn" type="button" data-action="install">
+        <svg class="i" aria-hidden="true"><use href="#i-download"/></svg><span>Install app</span>
       </button>
-      <button class="theme-switch" type="button" data-action="theme" role="switch" aria-checked="true" aria-label="Dark mode">
-        <span class="theme-switch__track">
-          <svg class="theme-switch__icon theme-switch__icon--sun" aria-hidden="true"><use href="#i-sun"/></svg>
-          <svg class="theme-switch__icon theme-switch__icon--moon" aria-hidden="true"><use href="#i-moon"/></svg>
-          <span class="theme-switch__knob"></span>
-        </span>
-      </button>
-      <button class="btn btn--outline btn--sm install-btn" type="button" data-action="install">
-        <svg aria-hidden="true"><use href="#i-download"/></svg>
-        <span>Install App</span>
-      </button>
-    </div>
-  </header>
+    </nav>
 
-  <main id="main">
-    <!-- ===================== HERO / OPENING STAGE ===================== -->
-    <section class="hero surface-dark" id="home" aria-labelledby="hero-title">
-      <div class="hero__art" data-slot="hero-art" aria-hidden="true"></div>
-      <div class="hero__bokeh" aria-hidden="true"></div>
-      <div class="hero__shade" aria-hidden="true"></div>
-      <div class="hero__inner container">
-        <div class="hero__copy">
-          <p class="eyebrow" data-slot="hero-eyebrow" data-reveal></p>
-          <h1 class="hero__title" id="hero-title" data-slot="hero-title" data-reveal></h1>
-          <p class="hero__lead" data-slot="hero-lead" data-reveal></p>
-          <div class="hero__actions" data-slot="hero-actions" data-reveal></div>
-        </div>
-        <aside class="featured" data-slot="hero-featured" data-reveal aria-label="Featured"></aside>
-      </div>
-      <a class="scroll-cue" href="#intro" aria-label="Scroll down"><span></span></a>
-    </section>
+    <main class="view" id="view" tabindex="-1"></main>
+  </div>
 
-    <!-- ===================== INTRO BAND ===================== -->
-    <section class="band band--b intro" id="intro">
-      <div class="container intro__inner">
-        <p class="eyebrow eyebrow--center" data-slot="intro-eyebrow" data-reveal></p>
-        <figure class="intro__frame" data-reveal>
-          <div class="intro__art" data-slot="intro-art"></div>
-          <figcaption class="intro__title" data-slot="intro-title"></figcaption>
-        </figure>
-        <p class="intro__caption" data-slot="intro-caption" data-reveal></p>
-      </div>
-    </section>
-
-    <!-- ===================== INTERACTIVE HUB / GRID ===================== -->
-    <section class="band band--a hub" id="explore" aria-labelledby="hub-title">
-      <div class="container">
-        <header class="section-head" data-reveal>
-          <div>
-            <p class="eyebrow">The hub</p>
-            <h2 class="section-title" id="hub-title">Find your <em>next ride.</em></h2>
-          </div>
-          <p class="section-lead">Filter by what you need, tap a card for details, and tap the heart to save it — your list stays on your device, even offline.</p>
-        </header>
-        <div class="filters" role="tablist" aria-label="Categories" data-slot="filters"></div>
-        <div class="grid" data-slot="grid" aria-live="polite"></div>
-      </div>
-    </section>
-
-    <!-- ===================== SPLIT SHOWCASE BAND ===================== -->
-    <section class="band band--b showcase" id="routes" aria-labelledby="showcase-title">
-      <div class="showcase__inner">
-        <div class="showcase__media" data-slot="showcase-media" aria-hidden="true"></div>
-        <div class="showcase__panel">
-          <div class="showcase__head">
-            <div>
-              <p class="eyebrow" data-slot="showcase-eyebrow"></p>
-              <h2 class="showcase__title" id="showcase-title" data-slot="showcase-title"></h2>
-            </div>
-            <span class="showcase__aside" data-slot="showcase-aside"></span>
-          </div>
-          <div class="showcase__tabs" role="tablist" aria-label="Ride types" data-slot="showcase-tabs"></div>
-          <p class="showcase__note" data-slot="showcase-note"></p>
-          <ol class="showcase__list" data-slot="showcase-list"></ol>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===================== STORY BAND ===================== -->
-    <section class="story surface-dark" id="story" aria-label="Our story">
-      <div class="story__art" data-slot="story-art" aria-hidden="true"></div>
-      <div class="story__shade" aria-hidden="true"></div>
-      <div class="container story__inner">
-        <p class="eyebrow eyebrow--center" data-slot="story-eyebrow" data-reveal></p>
-        <p class="story__text" data-slot="story-text" data-reveal></p>
-      </div>
-    </section>
-
-    <!-- ===================== PROOF & HIGHLIGHTS ===================== -->
-    <section class="band band--a proof" id="proof" aria-labelledby="proof-title">
-      <div class="container proof__inner">
-        <div class="proof__metric" data-reveal>
-          <p class="eyebrow" data-slot="proof-eyebrow"></p>
-          <p class="proof__number" id="proof-title"><span data-count data-slot="proof-number">0</span></p>
-          <div class="stars" aria-label="Rated 5 out of 5" data-slot="proof-stars"></div>
-          <p class="proof__label" data-slot="proof-label"></p>
-          <dl class="stats" data-slot="proof-stats"></dl>
-        </div>
-        <div class="deck-wrap" data-reveal>
-          <div class="deck" data-slot="deck" aria-roledescription="carousel" aria-label="Reviews"></div>
-          <div class="deck__controls">
-            <span class="deck__count" data-slot="deck-count"></span>
-            <button class="icon-btn icon-btn--line" type="button" data-action="deck-next" aria-label="Next review">
-              <svg aria-hidden="true"><use href="#i-arrow"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===================== RESERVE / FAQ ===================== -->
-    <section class="band band--b reserve" id="reserve" aria-labelledby="reserve-title">
-      <div class="container reserve__inner">
-        <div class="reserve__copy" data-reveal>
-          <p class="eyebrow" data-slot="reserve-eyebrow"></p>
-          <h2 class="reserve__title" id="reserve-title" data-slot="reserve-title"></h2>
-          <p class="section-lead" data-slot="reserve-lead"></p>
-          <div class="reserve__actions">
-            <button class="btn btn--primary" type="button" data-action="inquire">
-              <span data-slot="reserve-primary">Send a request</span>
-              <svg aria-hidden="true"><use href="#i-arrow"/></svg>
-            </button>
-            <a class="btn btn--ghost" data-slot="reserve-phone" href="#">
-              <svg aria-hidden="true"><use href="#i-phone"/></svg><span></span>
-            </a>
-          </div>
-        </div>
-        <div class="faq" data-slot="faq" data-reveal></div>
-      </div>
-    </section>
-
-    <!-- ===================== CLOSING ===================== -->
-    <section class="closing surface-dark" aria-labelledby="closing-title">
-      <div class="closing__art" data-slot="closing-art" aria-hidden="true"></div>
-      <div class="closing__shade" aria-hidden="true"></div>
-      <div class="closing__inner container" data-reveal>
-        <h2 class="closing__title" id="closing-title" data-slot="closing-title"></h2>
-        <button class="btn btn--coral" type="button" data-action="inquire"><span data-slot="closing-cta">Plan a ride</span></button>
-        <p class="closing__address"><svg aria-hidden="true"><use href="#i-pin"/></svg><span data-slot="address"></span></p>
-      </div>
-    </section>
-  </main>
-
-  <!-- ===================== DESKTOP FOOTER ===================== -->
-  <footer class="footer surface-dark">
-    <div class="container footer__grid">
-      <div class="footer__brand">
-        <a class="brand brand--footer" href="#home">
-          <svg class="brand__crown" aria-hidden="true"><use href="#i-crown"/></svg>
-          <span class="brand__text"><span class="brand__name" data-slot="brand-name">Hari ng Kalsada</span><span class="brand__tag" data-slot="brand-est"></span></span>
-        </a>
-        <p class="footer__blurb" data-slot="footer-blurb"></p>
-        <button class="btn btn--outline btn--sm install-btn" type="button" data-action="install">
-          <svg aria-hidden="true"><use href="#i-download"/></svg><span>Install App</span>
-        </button>
-      </div>
-      <div class="footer__cols" data-slot="footer-cols"></div>
-    </div>
-    <div class="container footer__base">
-      <span>© <span data-slot="year"></span> <span data-slot="brand-name">Hari ng Kalsada</span>. All rights reserved.</span>
-      <span class="footer__offline" data-slot="net-status">Works offline</span>
-    </div>
-  </footer>
-
-  <!-- ===================== MOBILE BOTTOM BAR ===================== -->
-  <nav class="bottombar" aria-label="App">
-    <a class="bottombar__item is-active" href="#home" data-tab="home">
-      <svg aria-hidden="true"><use href="#i-home"/></svg><span>Home</span>
-    </a>
-    <a class="bottombar__item" href="#explore" data-tab="explore">
-      <svg aria-hidden="true"><use href="#i-compass"/></svg><span>Explore</span>
-    </a>
-    <button class="bottombar__item" type="button" data-action="saved" data-tab="saved">
-      <span class="bottombar__icon">
-        <svg aria-hidden="true"><use href="#i-heart"/></svg>
-        <span class="badge" data-slot="saved-count" hidden>0</span>
-      </span>
-      <span>Saved</span>
-    </button>
-    <button class="bottombar__item install-tab" type="button" data-action="install" data-tab="app">
-      <svg aria-hidden="true"><use href="#i-download"/></svg><span>Get App</span>
-    </button>
-  </nav>
-
-  <!-- ===================== MODAL / SLIDE-OVER SHEET ===================== -->
+  <!-- Sheet (modal / slide-over) -->
   <div class="sheet" id="sheet" hidden>
     <div class="sheet__backdrop" data-action="close-sheet"></div>
     <div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1">
       <div class="sheet__handle" aria-hidden="true"><span></span></div>
       <header class="sheet__head">
         <h2 class="sheet__title" id="sheet-title"></h2>
-        <button class="icon-btn" type="button" data-action="close-sheet" aria-label="Close">
-          <svg aria-hidden="true"><use href="#i-close"/></svg>
-        </button>
+        <button class="icon-btn" type="button" data-action="close-sheet" aria-label="Close"><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>
       </header>
-      <div class="sheet__body" data-slot="sheet-body"></div>
+      <div class="sheet__body"></div>
     </div>
   </div>
 
-  <!-- Toast notifications -->
-  <div class="toasts" aria-live="polite" aria-atomic="false"></div>
+  <div class="toasts" aria-live="polite"></div>
+  <noscript><p style="padding:2rem;text-align:center">Tara needs JavaScript turned on.</p></noscript>
 
-  <noscript><div class="noscript">This site needs JavaScript turned on to show its content.</div></noscript>
-
-  <script src="js/content.js"></script>
-  <script src="js/app.js"></script>
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/services.js"></script>
+  <script src="js/planner.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>

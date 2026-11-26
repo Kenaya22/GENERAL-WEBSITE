@@ -1,68 +1,65 @@
-/* Service worker — offline caching so the installed app opens without signal.
-   Bump VERSION whenever you publish changes so visitors get the update. */
-const VERSION = "hnk-v1";
+/* Tara service worker — offline app shell, cached photos/tiles, notification clicks.
+   Bump VERSION when you publish changes. */
+const VERSION = "tara-v1";
+const RUNTIME = "tara-runtime-v1";
 const CORE = [
-  "./",
-  "./index.html",
-  "./offline.html",
-  "./css/tokens.css",
-  "./css/styles.css",
-  "./js/content.js",
-  "./js/app.js",
-  "./manifest.webmanifest",
-  "./icons/favicon.svg",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/apple-touch-icon.png",
+  "./", "./index.html", "./offline.html", "./manifest.webmanifest",
+  "./css/tokens.css", "./css/app.css",
+  "./js/config.js", "./js/core.js", "./js/services.js", "./js/planner.js", "./js/views.js", "./js/main.js",
+  "./vendor/leaflet/leaflet.js", "./vendor/leaflet/leaflet.css",
+  "./icons/favicon.svg", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
 ];
+const RUNTIME_MAX = 250;
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(VERSION).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
+self.addEventListener("install", (e) => {
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
+});
+self.addEventListener("activate", (e) => {
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== RUNTIME).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
-});
+async function trim(cache) {
+  const keys = await cache.keys();
+  for (let i = 0; i < keys.length - RUNTIME_MAX; i++) await cache.delete(keys[i]);
+}
 
-self.addEventListener("fetch", (event) => {
-  const req = event.request;
+self.addEventListener("fetch", (e) => {
+  const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
 
-  // Pages: network first, fall back to cached app shell, then offline page.
   if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(VERSION).then((c) => c.put("./index.html", copy));
-          return res;
-        })
+    e.respondWith(
+      fetch(req).then((res) => { const copy = res.clone(); caches.open(VERSION).then((c) => c.put("./index.html", copy)); return res; })
         .catch(() => caches.match("./index.html").then((r) => r || caches.match("./offline.html")))
     );
     return;
   }
 
-  const sameOrigin = url.origin === self.location.origin;
-  const isFont = /fonts\.(googleapis|gstatic)\.com$/.test(url.hostname);
-  if (!sameOrigin && !isFont) return;
+  if (url.origin === self.location.origin) {
+    // app files: cache first, refresh in background
+    e.respondWith(caches.open(VERSION).then((c) => c.match(req, { ignoreSearch: true }).then((hit) => {
+      const net = fetch(req).then((res) => { if (res.ok) c.put(req, res.clone()); return res; }).catch(() => hit);
+      return hit || net;
+    })));
+    return;
+  }
 
-  // Assets & fonts: stale-while-revalidate.
-  event.respondWith(
-    caches.open(VERSION).then((cache) =>
-      cache.match(req, { ignoreSearch: sameOrigin }).then((cached) => {
-        const network = fetch(req)
-          .then((res) => {
-            if (res && (res.ok || res.type === "opaque")) cache.put(req, res.clone());
-            return res;
-          })
-          .catch(() => cached);
-        return cached || network;
-      })
-    )
-  );
+  // fonts, map tiles and place photos: stale-while-revalidate into a capped runtime cache
+  if (/fonts\.(googleapis|gstatic)\.com$|tile\.openstreetmap\.org$|upload\.wikimedia\.org$/.test(url.hostname)) {
+    e.respondWith(caches.open(RUNTIME).then((c) => c.match(req).then((hit) => {
+      const net = fetch(req).then((res) => { if (res && (res.ok || res.type === "opaque")) { c.put(req, res.clone()); trim(c); } return res; }).catch(() => hit);
+      return hit || net;
+    })));
+  }
+  // API calls (search, places, weather) go to the network; the app caches results itself.
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const target = (e.notification.data && e.notification.data.url) || "#/trips";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+    for (const c of list) { if ("focus" in c) { c.navigate ? c.navigate("./" + target) : null; return c.focus(); } }
+    return self.clients.openWindow("./" + target);
+  }));
 });

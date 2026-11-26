@@ -1,43 +1,65 @@
-# Hari ng Kalsada — King of the Road
+# Tara — Philippine Travel Guide
 
-A general-purpose website that is also an **installable app** (PWA). It opens from a link on any phone or computer, can be installed to the home screen or desktop, and keeps working offline.
+**Tara** ("let's go") is a travel guide web app that installs on phones and computers like a native app (PWA) and keeps working offline.
 
-Built from the *General-Purpose Web & Installable App Blueprint*. The look follows an editorial style: burgundy and cream bands, Didone serif headlines, and small-caps navigation.
+## Features
 
-## What's inside
+- **Sign up / log in**: name, email, password and traveler type (Regular, Student, Senior, PWD). Guest mode is available too.
+- **Your location**: use the phone's GPS, or type an address such as *Brgy. Lecheria, Calamba, Laguna*.
+- **Explore**: restaurants, cafés, malls, parks, heritage sites, museums, churches, hot springs and resorts, theme parks, and pasalubong spots.
+  - Each place shows ratings, photos, distance, open/closed status, hours, entrance fees (with your discount), tips, a map and reviews.
+  - List and map views, filters, search, and sorting by nearest or top rated.
+- **Trip planner**: for example *Calamba → Intramuros*.
+  - Set the date, departure time, number of travelers, return trip and "head home by" time.
+  - You get the cheapest, fewest-transfer, Grab/taxi and own-car options.
+  - Every step says what to ride, where to board, the signboard to look for, the fare and the time.
+  - Discounts apply automatically: 20% off jeepney, tricycle and bus, and 50% off LRT for students, seniors and PWD.
+  - Rush hours add extra travel time.
+  - A **day itinerary** at the destination puts things to do in order, checks opening hours, adds a lunch stop, and lets you tap places to add or remove them.
+  - It also plans the ride home and gives a **budget** (fares, entrance fees, food) and **reminders** (bring your ID, prepare coins, rain alert, when to leave).
+- **Trips**: save plans, tick off steps as you go, turn on reminders, **download a calendar file** with alarms, share the itinerary, or open it in Google Maps.
+- **Profile**: traveler type, home and current location, saved places, dark mode, notifications, install the app, log out, and delete your data.
 
-| Blueprint zone | Where it is |
-| --- | --- |
-| Top app bar: brand, search, light/dark toggle, **Install App** | `<header class="appbar">` |
-| Hero: headline, two actions, featured preview | `#home` |
-| Interactive hub: filter tabs, cards, heart-to-save | `#explore` |
-| Split showcase: media panel and interactive list | `#routes` |
-| Proof and highlights: count-up metric, swipeable review deck | `#proof` |
-| Modal / slide-over sheet: details, inquiry form, saved list, search, install guide | `#sheet` |
-| Mobile bottom bar (Home · Explore · Saved · Get App) and desktop footer | `.bottombar`, `.footer` |
+## Where the data comes from
 
-Extras: scroll-reveal motion, animated toasts, an online/offline indicator, shareable item links (`?item=kennon-road`), keyboard search (`/` or `Ctrl/Cmd + K`), reduced-motion support, and safe-area support for notched phones.
+| Feature | Source | Needs internet |
+| --- | --- | --- |
+| Featured places, fares, transit hubs, LRT-1 stations | `js/config.js` (edit freely) | No |
+| Live places near you | OpenStreetMap (Overpass API) | Yes; cached for 24 h |
+| Address search and "where am I" | OpenStreetMap Nominatim | Yes; offline it falls back to the nearest town |
+| Place photos | Wikipedia | Yes; cached |
+| Weather and rain alerts | Open-Meteo | Yes; cached for 1 h |
+| Maps | Leaflet (bundled in `vendor/`) and OpenStreetMap tiles | Tiles need internet |
 
-## File map
+All of these are free and need no API keys.
+
+**Accounts, trips, reviews and saved places are stored on the visitor's own device.** To sync between devices later, connect a free backend such as Firebase or Supabase in `js/services.js` (`T.auth` and `T.data`).
+
+> Guide scores, hours, entrance fees and fares in `config.js` are estimates for planning. Update them as prices change.
+
+## Files
 
 ```
-index.html            page structure (zones)
-css/tokens.css        DESIGN TOKENS: colors, fonts, spacing, radii, motion. Rebrand here.
-css/styles.css        layout and components
-js/content.js         ALL CONTENT: titles, categories, cards, routes, reviews, FAQs, contact
-js/app.js             rendering, interactions, install, offline
-manifest.webmanifest  app name, icons, colors (what the installed app looks like)
+index.html            app shell and icon set
+css/tokens.css        design tokens: colors, fonts, spacing, radii, motion
+css/app.css           all components and layouts
+js/config.js          places, categories, transit hubs, fares, discounts
+js/core.js            helpers, router, toasts, sheets, place artwork
+js/services.js        accounts, location, places, photos, weather
+js/planner.js         route, fare and itinerary engine, reminders, calendar export
+js/views.js           screens: welcome, sign-up, home, explore, place, plan, trips, profile
+js/main.js            startup, navigation, reminders, install, offline
 sw.js                 offline caching (bump VERSION after each change)
-icons/                app icons and install screenshots
+manifest.webmanifest  install settings (name, icons, colors)
 ```
 
 ## Customize
 
-1. **Content**: edit `js/content.js`. Every card's `art` draws an illustration in code. To use a real photo instead, add `image: "img/photo.jpg"` to its `art`.
-2. **Look**: edit `css/tokens.css` (colors, font pairing, spacing, radii, motion).
-3. **Name and icon**: update `manifest.webmanifest`, the `<title>` and meta tags in `index.html`, and the files in `icons/`.
-4. **Receive form submissions**: paste a free Formspree or Getform endpoint into `forms.endpoint` in `content.js`. If it's left empty, requests are stored on the visitor's device.
-5. After any change, bump `VERSION` in `sw.js` so installed apps pick up the update.
+- **Add a place**: copy an entry in `places` in `js/config.js`. Set `wiki` to a Wikipedia title for an automatic photo.
+- **Change fares**: edit `fares` and `travelerTypes` in `js/config.js`.
+- **Add bus stops or terminals**: edit `transit.provincialStops` and `transit.metroTerminals`.
+- **Rebrand**: edit `css/tokens.css`, `manifest.webmanifest` and `icons/`.
+- After publishing changes, bump `VERSION` in `sw.js`.
 
 ## Run locally
 
@@ -48,17 +70,10 @@ python3 -m http.server 8080
 
 ## Publish free on GitHub Pages
 
-1. On GitHub, open the repository → **Settings → Pages**.
-2. Under *Build and deployment → Source*, choose **GitHub Actions**.
-3. Push to `main` (or run the *Deploy to GitHub Pages* workflow from the **Actions** tab).
-4. The site goes live at `https://<your-username>.github.io/<repo-name>/`.
+1. On GitHub, open the repository → **Settings → Pages** → *Source*: **GitHub Actions**.
+2. Push, or run **Actions → Deploy to GitHub Pages**.
+3. Open `https://<username>.github.io/<repo>/` on your phone and tap **Install app**.
 
-Cloudflare Pages and Vercel also work: there is no build step, so publish the repository root as-is.
+GPS location only works over HTTPS, which GitHub Pages provides.
 
-## Install / download the app
-
-- **Android (Chrome)**: tap **Install App**, or open the ⋮ menu and choose **Install app**.
-- **iPhone (Safari)**: tap Share, then **Add to Home Screen**.
-- **Desktop (Chrome/Edge)**: click **Install App** or the install icon in the address bar.
-
-To ship it in the Google Play Store as a real APK/AAB later, put the live URL into [PWABuilder](https://www.pwabuilder.com) and it will package the app for you.
+To publish on Google Play later, paste the live link into [PWABuilder](https://www.pwabuilder.com) to generate an Android package.

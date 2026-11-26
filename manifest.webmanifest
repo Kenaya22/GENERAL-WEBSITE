@@ -1,28 +1,28 @@
 {
-  "name": "Hari ng Kalsada — King of the Road",
-  "short_name": "Hari",
-  "description": "Rides, routes, garages and gear for everyone on the Philippine road.",
+  "name": "Tara — Philippine Travel Guide",
+  "short_name": "Tara",
+  "description": "Places near you, commute plans with fares and student/senior/PWD discounts, day itineraries and reminders.",
   "id": "./",
-  "start_url": "./?source=app",
+  "start_url": "./#/home",
   "scope": "./",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
-  "orientation": "any",
-  "background_color": "#1c0a0f",
-  "theme_color": "#1c0a0f",
-  "lang": "en",
-  "categories": ["travel", "lifestyle", "navigation"],
+  "orientation": "portrait",
+  "background_color": "#fbf5ea",
+  "theme_color": "#175153",
+  "lang": "en-PH",
+  "categories": ["travel", "navigation", "lifestyle"],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "screenshots": [
-    { "src": "icons/screenshot-mobile.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Home screen" },
-    { "src": "icons/screenshot-desktop.png", "sizes": "2560x1600", "type": "image/png", "form_factor": "wide", "label": "Desktop view" }
+    { "src": "icons/screenshot-mobile.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Home" },
+    { "src": "icons/screenshot-desktop.png", "sizes": "2560x1600", "type": "image/png", "form_factor": "wide", "label": "Trip planner" }
   ],
   "shortcuts": [
-    { "name": "Explore", "url": "./#explore", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Routes", "url": "./#routes", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "Plan a trip", "url": "./#/plan", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Explore nearby", "url": "./#/explore", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "My trips", "url": "./#/trips", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }
