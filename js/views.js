@@ -913,7 +913,7 @@
     return {
       from: { name: here.label.split(",")[0], label: here.label, lat: here.lat, lng: here.lng },
       stops: [], date: T.isoDate(d), time: useNow && dep.getHours() < 15 ? T.pad(dep.getHours()) + ":" + T.pad(dep.getMinutes()) : "07:00",
-      pax: 1, type: T.traveler().id, ret: true, homeBy: "19:00", dayEnd: "18:00", activities: true, optionId: null, include: null,
+      pax: 1, type: "regular", ret: true, homeBy: "19:00", dayEnd: "18:00", activities: true, optionId: null, include: null,
       days: 1, lodging: "budget",
     };
   }
