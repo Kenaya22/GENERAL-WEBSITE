@@ -86,7 +86,7 @@
               cur = station(nextLine, nextIdx);
             }
           });
-          if (!ok || !legs.some(function (l) { return l.mode === "lrt"; })) return;
+          if (!ok || !legs.some(isTrain)) return;
           legs.push(sb.d < 1.1 ? walkLeg(sb.st, b) : localLeg(sb.st, b));
           cost += Math.min(sa.d, 1.1) * 14 + Math.max(0, sa.d - 1.1) * 6 + Math.min(sb.d, 1.1) * 14 + Math.max(0, sb.d - 1.1) * 6 + path.length * 8;
           if (!best || cost < best.cost) best = { legs: legs, cost: cost };
@@ -137,10 +137,11 @@
     var fare = Math.min(L.fare.max, Math.max(L.fare.min, Math.ceil(L.fare.boarding + L.fare.perKm * km)));
     var stops = Math.abs(i - j);
     var dir = j < i ? L.dirs[0] : L.dirs[1];
-    return { mode: "lrt", line: L.name, from: station(lineId, i), to: station(lineId, j), km: km, ride: km / F.rail.speed * 60 + stops * 0.6, wait: F.rail.wait, fareReg: fare, discount: "rail",
-      text: "Take " + L.name + " " + dir + " to " + station(lineId, j).name, stops: stops,
-      board: "Board at " + station(lineId, i).name + ".",
-      tip: stops + " stop" + (stops > 1 ? "s" : "") + ". Buy a single-journey ticket or tap a beep card." };
+    var bus = L.mode === "busway";
+    return { mode: L.mode || "lrt", line: L.name, from: station(lineId, i), to: station(lineId, j), km: km, ride: km / (L.speed || F.rail.speed) * 60 + stops * 0.6, wait: L.wait || F.rail.wait, fareReg: fare, discount: L.discount || "rail",
+      road: bus, text: "Take " + L.name + " " + dir + " to " + station(lineId, j).name, stops: stops,
+      board: "Board at " + station(lineId, i).name + (bus ? " (the busway in the middle of EDSA)." : "."),
+      tip: stops + " stop" + (stops > 1 ? "s" : "") + (bus ? ". Pay with a beep card at the station; buses come every few minutes." : ". Buy a single-journey ticket or tap a beep card.") };
   }
   function grabLeg(a, b) {
     var km = dist(a, b) * F.roadFactor;
@@ -248,7 +249,61 @@
     legs.forEach(function (l) { if (l.mode === "bus") l.approx = true; });
     return { via: term.name, legs: legs };
   }
+  function isTrain(l) { return l.mode === "lrt" || l.mode === "busway"; }
+  // island places (Corregidor, Fortune Island…): reach the port, then the boat
+  function ferryAt(p) {
+    var hit = null;
+    C.places.forEach(function (x) { if (!hit && x.ferry && dist(p, x) < 1.5) hit = x; });
+    return hit;
+  }
+  function ferryLeg(a, b, f) {
+    return { mode: "ferry", from: pt(a), to: pt(b), km: dist(a, b), ride: f.minutes, wait: 20, fareReg: f.fare || 0, approx: true,
+      text: "Take the boat to " + b.name, board: "Board at " + (f.port.name) + ".", tip: f.note };
+  }
+  function p2pLeg(r, rev) {
+    var a = rev ? r.to : r.from, b = rev ? r.from : r.to;
+    var km = dist(a, b) * 1.25;
+    return { mode: "p2p", from: pt(a), to: pt(b), km: km, ride: km / 35 * 60, wait: 15, fareReg: r.fare, discount: "road", road: true, approx: true,
+      text: "Ride the " + r.name + " premium bus", board: "Board at " + a.name + ". P2P buses leave at set times — check today's schedule.",
+      tip: "Get off at " + b.name + ". Seats are guaranteed and there are fewer stops than regular buses." };
+  }
+  function uvVariant(legs, stopArea) {
+    var out = legs.map(function (l) {
+      if (l.mode !== "bus") return l;
+      var km = l.km;
+      return { mode: "uv", from: l.from, to: l.to, km: km, ride: km / 38 * 60, wait: 15, fareReg: Math.round(l.fareReg * 1.3), discount: "road", road: true, approx: true,
+        text: "Ride a UV Express van to " + l.to.name, board: "Vans leave from the UV Express terminal in " + stopArea + " when full — ask locals where it is.",
+        tip: "Faster than the bus, with fewer stops. Fares are posted inside the van." };
+    });
+    return out;
+  }
   function candidates(from, to) {
+    var fTo = ferryAt(to), fFrom = ferryAt(from);
+    if (fTo && dist(from, fTo) > 2) {
+      return candidates(from, pt(fTo.ferry.port)).filter(function (c) { return c.kind !== "car" || true; }).map(function (c) {
+        return { kind: c.kind, via: c.via, approx: true, legs: c.legs.concat([ferryLeg(fTo.ferry.port, to, fTo.ferry)]) };
+      });
+    }
+    if (fFrom && dist(to, fFrom) > 2) {
+      return candidates(pt(fFrom.ferry.port), to).map(function (c) {
+        return { kind: c.kind, via: c.via, approx: true, legs: [ferryLeg(from, fFrom.ferry.port, fFrom.ferry)].concat(c.legs) };
+      });
+    }
+    return baseCandidates(from, to).concat(p2pCandidates(from, to));
+  }
+  function p2pCandidates(from, to) {
+    var out = [];
+    (TR.p2p || []).forEach(function (r) {
+      [false, true].forEach(function (rev) {
+        var a = rev ? r.to : r.from, b = rev ? r.from : r.to;
+        if (dist(from, a) > 8 || dist(to, b) > 4) return;
+        var legs = (dist(from, a) < 0.35 ? [] : [localLeg(from, pt(a))]).concat([p2pLeg(r, rev)]).concat(dist(b, to) < 0.35 ? [] : metroLink(pt(b), to, true));
+        out.push({ kind: "commute", via: r.name, legs: legs, approx: true });
+      });
+    });
+    return out;
+  }
+  function baseCandidates(from, to) {
     var d = dist(from, to);
     var out = [];
     var fm = T.geo.isMetro(from), tm = T.geo.isMetro(to);
@@ -282,9 +337,12 @@
           }
           // skip unrealistic combos (e.g. a 30 km jeepney ride across Metro Manila)
           if (legs.some(function (l) { return l.mode === "jeep" && !l.sign && l.km > 15; })) return;
-          out.push({ kind: "commute", via: term.name, legs: legs, rail: legs.some(function (l) { return l.mode === "lrt"; }) });
+          out.push({ kind: "commute", via: term.name, legs: legs, rail: legs.some(isTrain) });
         });
       });
+      // UV Express alternative (vans) on the most direct terminal
+      var direct = out.filter(function (c) { return !c.rail; })[0];
+      if (direct) out.push({ kind: "commute", via: direct.via, legs: uvVariant(direct.legs, stop.area), approx: true, uv: true });
       if (!out.length) terms.slice(0, 1).forEach(function (term) {
         out.push({ kind: "commute", via: term.name, legs: (fm ? metroLink(from, pt(term), true).concat([busLeg(term, stop, stop.sign, "", stop.area)]).concat([localLeg(stop, to)])
           : [localLeg(from, stop), busLeg(stop, term, term.sign, stop.how, term.name)].concat(metroLink(pt(term), to, true))) });
@@ -319,8 +377,14 @@
     }
     if (!res.some(function (o) { return o.rail; })) {
       var train = commute.filter(function (o) { return o.rail && res.indexOf(o) < 0; }).sort(function (a, b) { return a.minutes - b.minutes; })[0];
-      if (train) { train.tag = "By train"; res.push(train); }
+      if (train) { train.tag = train.legs.some(function (l) { return l.mode === "lrt"; }) ? "By train" : "EDSA Carousel"; res.push(train); }
     }
+    var hasMode = function (o, m) { return o.legs.some(function (l) { return l.mode === m; }); };
+    [["p2p", "Premium P2P bus"], ["uv", "UV Express van"]].forEach(function (mt) {
+      if (res.some(function (o) { return hasMode(o, mt[0]); })) return;
+      var alt = commute.filter(function (o) { return res.indexOf(o) < 0 && hasMode(o, mt[0]); }).sort(function (a, b) { return a.minutes - b.minutes; })[0];
+      if (alt) { alt.tag = mt[1]; res.push(alt); }
+    });
     if (longWalk) { longWalk.tag = "Walk (free)"; res.push(longWalk); }
     var grab = list.filter(function (o) { return o.kind === "grab"; })[0];
     if (grab) { grab.tag = "Door-to-door"; res.push(grab); }
@@ -330,8 +394,8 @@
     return res;
   }
 
-  var modeName = { walk: "Walk", tricycle: "Tricycle", jeep: "Jeepney", bus: "Bus", lrt: "Train", grab: "Grab/Taxi", car: "Car" };
-  function legName(l) { return l.mode === "lrt" ? l.line : modeName[l.mode]; }
+  var modeName = { walk: "Walk", tricycle: "Tricycle", jeep: "Jeepney", bus: "Bus", lrt: "Train", busway: "EDSA Carousel", p2p: "P2P bus", uv: "UV Express", ferry: "Ferry", grab: "Grab/Taxi", car: "Car" };
+  function legName(l) { return l.mode === "lrt" || l.mode === "busway" ? l.line : modeName[l.mode]; }
   function titleFor(o) {
     var seq = [];
     o.legs.forEach(function (l) { if (l.mode !== "walk" || o.legs.length === 1) { var n = legName(l); if (seq[seq.length - 1] !== n) seq.push(n); } });
@@ -561,7 +625,7 @@
     options: function (from, to, depart, trav, pax) {
       return pickOptions(candidates(from, to).map(function (c) {
         var r = finalize(c.legs, depart, trav, pax);
-        r.kind = c.kind; r.via = c.via; r.rail = c.legs.some(function (l) { return l.mode === "lrt"; }); r.approx = !!c.approx;
+        r.kind = c.kind; r.via = c.via; r.rail = c.legs.some(isTrain); r.approx = !!c.approx;
         return r;
       }));
     },

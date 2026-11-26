@@ -1105,7 +1105,7 @@
   };
 
   /* ---------- timelines ---------- */
-  var modeIcon = { walk: "walk", tricycle: "tricycle", jeep: "jeep", bus: "bus", lrt: "train", grab: "car", car: "car" };
+  var modeIcon = { walk: "walk", tricycle: "tricycle", jeep: "jeep", bus: "bus", lrt: "train", busway: "bus", p2p: "bus", uv: "car", ferry: "waves", grab: "car", car: "car" };
   T.modeIcon = modeIcon;
   // opts: startLabel, startTime, toName ("Arrive at X"), endLabel, check, done, prefix
   function legsTimeline(o, opts) {
