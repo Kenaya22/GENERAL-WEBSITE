@@ -1620,7 +1620,7 @@
     T.toast(title, body, "bell");
     try { if (navigator.vibrate) navigator.vibrate([250, 120, 250]); } catch (e) {}
     if (window.Notification && Notification.permission === "granted" && navigator.serviceWorker) {
-      navigator.serviceWorker.ready.then(function (reg) { reg.showNotification(title, { body: body, icon: "icons/icon-192.png", tag: "tara-live-" + tripId, renotify: true, data: { url: "#/live/" + tripId } }); }).catch(function () {});
+      navigator.serviceWorker.ready.then(function (reg) { reg.showNotification(title, { body: body, icon: "icons/tara-192.png", tag: "tara-live-" + tripId, renotify: true, data: { url: "#/live/" + tripId } }); }).catch(function () {});
     }
   }
   T.views.live = function (r) {

@@ -150,7 +150,7 @@
     T.toast(title, body, "bell");
     if (window.Notification && Notification.permission === "granted" && navigator.serviceWorker) {
       navigator.serviceWorker.ready.then(function (reg) {
-        reg.showNotification(title, { body: body, icon: "icons/icon-192.png", badge: "icons/icon-192.png", tag: "tara-" + tripId + "-" + Date.now(), data: { url: "#/trip/" + tripId } });
+        reg.showNotification(title, { body: body, icon: "icons/tara-192.png", badge: "icons/tara-192.png", tag: "tara-" + tripId + "-" + Date.now(), data: { url: "#/trip/" + tripId } });
       }).catch(function () {});
     }
   }
@@ -178,7 +178,7 @@
     };
     var tabs = [["android", "Android"], ["ios", "iPhone"], ["desktop", "Computer"]];
     T.sheet.open("Install Tara", (standalone ? '<p class="setup-ok">' + T.icon("check") + "<span>You're already using the installed app.</span></p>" : "") +
-      '<div class="install-hero"><img src="icons/icon-192.png" alt="" width="76" height="76"><p>Free, light and works offline. No app store needed.</p></div>' +
+      '<div class="install-hero"><img src="icons/tara-192.png" alt="" width="76" height="76"><p>Free, light and works offline. No app store needed.</p></div>' +
       '<div class="seg seg--3">' + tabs.map(function (t) { return '<label class="seg__opt"><input type="radio" name="ig" value="' + t[0] + '"' + (t[0] === k ? " checked" : "") + ' data-input="install-tab"><span>' + t[1] + "</span></label>"; }).join("") + "</div>" +
       Object.keys(steps).map(function (key) { return '<ol class="steps" data-guide="' + key + '"' + (key === k ? "" : " hidden") + ">" + steps[key].map(function (s) { return "<li><p>" + s + "</p></li>"; }).join("") + "</ol>"; }).join(""));
   }
