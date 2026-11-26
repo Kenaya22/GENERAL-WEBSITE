@@ -1,7 +1,7 @@
 {
   "name": "Tara — Philippine Travel Guide",
   "short_name": "Tara",
-  "description": "Places near you, commute plans with fares and student/senior/PWD discounts, day itineraries and reminders.",
+  "description": "Plan commutes with real signboards and fares (student, senior & PWD discounts), explore places per city, ask Tara anything, and follow your trip step by step.",
   "id": "./",
   "start_url": "./#/home",
   "scope": "./",
@@ -10,19 +10,112 @@
   "background_color": "#0b2b2d",
   "theme_color": "#175153",
   "lang": "en-PH",
-  "categories": ["travel", "navigation", "lifestyle"],
+  "categories": [
+    "travel",
+    "navigation",
+    "lifestyle"
+  ],
   "icons": [
-    { "src": "icons/tara-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/tara-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/tara-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icons/tara-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/tara-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/tara-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "screenshots": [
-    { "src": "icons/screenshot-mobile.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Home" },
-    { "src": "icons/screenshot-desktop.png", "sizes": "2560x1600", "type": "image/png", "form_factor": "wide", "label": "Trip planner" }
+    {
+      "src": "icons/store-1-home.png",
+      "sizes": "1081x2343",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Home: places near you"
+    },
+    {
+      "src": "icons/store-2-plan.png",
+      "sizes": "1081x2343",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Trip planner with fares"
+    },
+    {
+      "src": "icons/store-3-ask.png",
+      "sizes": "1081x2343",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Ask Tara in English or Tagalog"
+    },
+    {
+      "src": "icons/store-4-city.png",
+      "sizes": "1081x2343",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "City guides"
+    },
+    {
+      "src": "icons/screenshot-desktop.png",
+      "sizes": "2560x1600",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Trip planner"
+    }
   ],
   "shortcuts": [
-    { "name": "Plan a trip", "url": "./#/plan", "icons": [{ "src": "icons/tara-192.png", "sizes": "192x192" }] },
-    { "name": "Explore nearby", "url": "./#/explore", "icons": [{ "src": "icons/tara-192.png", "sizes": "192x192" }] },
-    { "name": "My trips", "url": "./#/trips", "icons": [{ "src": "icons/tara-192.png", "sizes": "192x192" }] }
+    {
+      "name": "Plan a trip",
+      "url": "./#/plan",
+      "icons": [
+        {
+          "src": "icons/tara-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Ask Tara",
+      "url": "./#/ask",
+      "icons": [
+        {
+          "src": "icons/tara-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Explore nearby",
+      "url": "./#/explore",
+      "icons": [
+        {
+          "src": "icons/tara-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "My trips",
+      "url": "./#/trips",
+      "icons": [
+        {
+          "src": "icons/tara-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
   ]
 }

@@ -24,6 +24,10 @@ TARA.config = {
   backend: {
     supabaseUrl: "",
     supabaseKey: "",
+    /* Optional AI answers for Ask Tara: deploy supabase/functions/ask-tara and
+       paste its URL here, e.g. "https://xxxx.supabase.co/functions/v1/ask-tara".
+       Leave empty to use only the built-in answers (free, offline). */
+    askUrl: "",
   },
 
   /* Default spot used before the traveler shares a location. */

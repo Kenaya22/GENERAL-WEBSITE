@@ -1350,3 +1350,5 @@ body.is-auth .ask-bubble, body.askpop-open .ask-bubble { display: none; }
 .wkend__idea small { font-size: 11px; opacity: .85; }
 .tl__warn { display: flex; gap: 6px; align-items: flex-start; margin: 6px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--accent-soft); color: var(--text); font-size: var(--fs-xs); line-height: 1.45; }
 .tl__warn .i { width: 14px; height: 14px; flex: none; margin-top: 1px; color: var(--accent); }
+.ai-note { display: flex; gap: 6px; align-items: center; margin-top: 8px !important; font-size: 11px; color: var(--text-3); }
+.ai-note .i { width: 12px !important; height: 12px !important; color: var(--accent); }

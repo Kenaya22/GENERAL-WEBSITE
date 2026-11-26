@@ -404,13 +404,48 @@
       if (areaE) return cityGuide(areaE);
       if (!e) return searchAns(t, null, null, null);
     }
-    if (e && e.type === "place") return placeAns(e.obj);
-    if (e) return cityGuide(e);
+    if (e && e.type === "place") return Object.assign(placeAns(e.obj), { generic: true });
+    if (e) return Object.assign(cityGuide(e), { generic: true });
     // last try: free-text search of the guide
     var q = t.replace(/\b(where|is|are|the|a|an|ano|saan|ang|mga|po|ba|may|meron|i|want|gusto|ko|ng|sa|to|in|for|me|show|find|hanap)\b/g, " ").replace(/\s+/g, " ").trim();
     var found = q.length >= 3 ? T.places.query({ q: q }).slice(0, 5).map(function (x) { return x.p; }) : [];
     if (found.length) return { html: para("Here's what I found for “" + esc(q) + "”:") + placeList(found) };
-    return { html: plain("Sorry, I didn't get that yet. I'm best with questions about places, routes, fares and trips. Try one of these:"), chips: SUGGEST };
+    return { html: plain("Sorry, I didn't get that yet. I'm best with questions about places, routes, fares and trips. Try one of these:"), chips: SUGGEST, unknown: true };
+  }
+
+  /* ---------- optional AI answers (server-side, see supabase/functions/ask-tara) ---------- */
+  function aiContext(t) {
+    var here = T.location.get(), lines = ["Traveler is in: " + (here.label || "unknown"), "Fare discount: " + (T.traveler().entry ? "student/senior/PWD" : "regular"), "Today: " + T.date(new Date(), true)];
+    entities(norm(t)).slice(0, 3).forEach(function (e) {
+      if (e.type === "place") {
+        var p = e.obj, f = T.places.fee(p);
+        lines.push("Place: " + p.name + " (" + T.cat(p.cat).label + ", " + p.area + ") — " + (p.desc || "") + " Hours: " + T.places.hoursText(p) + ". Entrance: " + f.label + ". " + T.km(T.geo.distance(here, p)) + " from the traveler.");
+      } else if (e.type === "city") {
+        var top = T.places.query({ scope: { type: "city", id: e.obj.id }, sort: "rating" }).slice(0, 6).map(function (x) { return x.p.name + " (" + T.cat(x.p.cat).short + ")"; });
+        lines.push("Town: " + T.dest.label(e.obj) + " — " + (e.obj.blurb || "") + " Top places: " + top.join(", ") + ".");
+      }
+    });
+    return lines.join("\n");
+  }
+  function aiFormat(text) {
+    var out = [], list = [];
+    String(text).split(/\n+/).forEach(function (ln) {
+      var m = /^\s*(?:[-•*]|\d+[.)])\s+(.*)$/.exec(ln);
+      var fmt = function (s) { return esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>"); };
+      if (m) list.push("<li>" + fmt(m[1]) + "</li>");
+      else { if (list.length) { out.push('<ul class="ask-ul">' + list.join("") + "</ul>"); list = []; } if (ln.trim()) out.push("<p>" + fmt(ln.trim()) + "</p>"); }
+    });
+    if (list.length) out.push('<ul class="ask-ul">' + list.join("") + "</ul>");
+    return out.join("");
+  }
+  function aiAnswer(text, local) {
+    var url = C.backend && C.backend.askUrl;
+    if (!url || !navigator.onLine) return local;
+    var hist = chatLog().slice(-6).map(function (m) { var d = document.createElement("div"); d.innerHTML = m.html || ""; return { who: m.who, text: m.text || d.textContent }; });
+    return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: text, context: aiContext(text), history: hist }) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok || !j.answer) throw new Error(j.error || "AI unavailable"); return j.answer; }); })
+      .then(function (ans) { return { html: aiFormat(ans) + '<p class="ai-note">' + icon("sparkle") + "AI answer — may not be exact. Check fares and hours in the app.</p>", chips: ["How do I get there?", "Surprise me!"] }; })
+      .catch(function () { return local; });
   }
 
   /* ======================================================================
@@ -445,7 +480,7 @@
     box.insertAdjacentHTML("beforeend", bubble({ who: "me", text: text }) + '<div class="msg msg--bot msg--typing" id="typing"><span class="msg__av" aria-hidden="true"><svg class="logo-av"><use href="#i-logo"/></svg></span><div class="msg__b"><i></i><i></i><i></i></div></div>');
     scrollDown();
     var r;
-    try { r = T.assistant.answer(text); } catch (err) { r = { html: plain("Oops — something went wrong while answering. Please try asking another way.") }; if (window.console) console.warn(err); }
+    try { r = T.assistant.answer(text); if (r && (r.unknown || (r.generic && text.trim().split(/\s+/).length >= 6))) r = aiAnswer(text, r); } catch (err) { r = { html: plain("Oops — something went wrong while answering. Please try asking another way.") }; if (window.console) console.warn(err); }
     Promise.all([Promise.resolve(r), new Promise(function (res) { setTimeout(res, T.reduceMotion ? 50 : 450 + Math.min(600, text.length * 8)); })]).then(function (v) {
       var a = v[0] || { html: plain("…") };
       var ty = $("#typing");

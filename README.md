@@ -26,6 +26,15 @@
 - **Online accounts and shared reviews** (optional, free, see *Turn on online accounts* below): log in on any phone and see your trips, saved places and profile photo; everyone sees everyone's reviews and photos; only the author can edit or delete theirs.
 - **More places and cities**: Tanay (Daranak Falls, Masungi, Regina Rica, sea-of-clouds viewpoints), Angono (Petroglyphs, Blanco Family Museum), Batangas City, Lipa, Lucena, Tayabas, Imus, Cavinti (Lake Caliraya), Marikina and more, with bus routes such as Calamba → Lucena, Calamba → Tanauan → Batangas City, and Calamba → Cubao → Tanay.
 
+### New in version 5
+- **Ask Tara**: a chat helper on every screen (a draggable bubble). It answers routes and fares, what's open, entrance fees, places by town and price, things to do, hotels, pasalubong, discounts, weather, holidays, festivals, first and last trips, and app how-tos, in English or Tagalog, offline. Optional AI answers are set up in `PUBLISHING.md`.
+- **How Tara works** guide (`#/guide`), a first-run card on Home and a Tagalog/English switch.
+- **Travel together**: group expense splitter, pasalubong checklist, trip diary with a recap picture, and **Send trip link** (the whole plan is inside the link).
+- **Engagement**: "I've been here" check-ins, 14 badges, explorer levels, Share my badges, a weekend card with long weekends and festivals, and Surprise me.
+- **Better info**: first and last trip warnings, Report real fare, Fix info for places (hours, fees, phone, map pin), and your own place photos.
+- **More places**: all of Metro Manila and Calabarzon, plus Bulacan, Pampanga, Pangasinan and Baguio/Benguet, with the EDSA Carousel, P2P buses, UV Express, island boats and Cubao bus connections to the north.
+- Publishing, AI and Play Store steps: see **PUBLISHING.md**.
+
 ## Turn on online accounts (free, about 10 minutes)
 
 Without this, accounts, trips and reviews stay on each phone. With it, they're online.
