@@ -374,13 +374,15 @@
       '<a href="#/plan?days=1">' + icon("sun") + "Day trip</a>" +
       '<a href="#/plan?days=2">' + icon("bed") + "Weekend getaway</a>" +
       '<a href="#/explore?cat=food">' + icon("utensils") + "Food trip</a>" +
-      '<a href="#/explore?cat=cafe">' + icon("coffee") + "Café hopping</a></div>" +
+      '<a href="#/explore?cat=cafe">' + icon("coffee") + "Café hopping</a>" +
+      '<a href="#/ask?q=Surprise%20me!">' + icon("sparkle") + "Surprise me</a></div>" +
       heroDeco() +
       "</section>" +
       '<section class="section"><div class="cats">' + C.categories.map(function (c, i) {
         return '<a class="cat-tile cat--' + c.id + '" style="--d:' + i * 40 + 'ms" href="#/explore?cat=' + c.id + '"><span>' + icon(c.icon) + "</span>" + esc(c.short) + "</a>";
       }).join("") + "</div></section>" +
       (trip ? '<section class="section">' + nextTripCard(trip) + "</section>" : "") +
+      '<section class="section home-duo">' + askCard() + (T.engage ? T.engage.homeCard() : "") + "</section>" +
       '<section class="section"><div class="sec-head"><h2>' + icon("fire") + ' Featured trips</h2></div>' +
       '<div class="feature" id="feature">' + C.dayTrips.map(function (id) { var p = T.places.get(id); return p ? featureSlide(p) : ""; }).join("") + "</div>" +
       '<div class="feature-dots" id="feature-dots">' + C.dayTrips.map(function (id, i) { return '<button type="button" data-action="feature-go" data-i="' + i + '" aria-label="Slide ' + (i + 1) + '"' + (i ? "" : ' aria-current="true"') + "></button>"; }).join("") + "</div></section>" +
@@ -420,6 +422,13 @@
       T.photos.hydrate(box);
     });
   };
+  function askCard() {
+    var qs = ["How do I get to Intramuros?", "Cafés open now near me", "Cheap food near me"];
+    return '<div class="card ask-card"><div class="ask-card__head"><span class="ask-card__av"><svg class="logo-av" aria-hidden="true"><use href="#i-logo"/></svg></span><div><strong>Ask Tara</strong><small>Routes, fares, places & tips — English or Tagalog</small></div></div>' +
+      '<form class="ask-card__form" data-submit="ask-home"><input class="input" name="q" placeholder="e.g. Magkano papuntang Tagaytay?" aria-label="Ask Tara"><button class="btn btn--primary btn--sm" type="submit" aria-label="Ask">' + icon("arrow") + "</button></form>" +
+      '<div class="ask-chips">' + qs.map(function (q) { return '<a class="chip chip--sm" href="#/ask?q=' + encodeURIComponent(q) + '">' + esc(q) + "</a>"; }).join("") + "</div></div>";
+  }
+  T.submits["ask-home"] = function (form) { var q = form.q.value.trim(); T.router.go("ask" + (q ? "?q=" + encodeURIComponent(q) : "")); };
   function heroDeco() {
     return '<div class="hero-deco" aria-hidden="true"><span class="hero-sun"></span><span class="hero-cloud hero-cloud--1"></span><span class="hero-cloud hero-cloud--2"></span>' +
       '<span class="hero-road"></span><span class="hero-jeep">' + icon("jeep") + "</span></div>";
@@ -794,7 +803,8 @@
       "</div>" +
       '<div class="place-actions">' +
       '<a class="btn btn--primary" href="#/plan?to=' + encodeURIComponent(p.id) + '">' + icon("route") + "Plan a trip here</a>" +
-      '<a class="btn btn--ghost" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=' + p.lat + "," + p.lng + '">' + icon("map") + "Directions</a></div>" +
+      '<a class="btn btn--ghost" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=' + p.lat + "," + p.lng + '">' + icon("map") + "Directions</a>" +
+      (T.engage && p.source !== "osm" ? T.engage.visitBtn(p) : "") + "</div>" +
       (p.desc ? '<section class="psec"><h2>About</h2><p>' + esc(p.desc) + "</p></section>" : "") +
       '<section class="psec"><h2>Good to know</h2><dl class="facts">' +
       "<div><dt>" + icon("clock") + "Hours</dt><dd>" + esc(T.places.hoursText(p)) + "</dd></div>" +
@@ -1854,6 +1864,7 @@
       "<div><h2>" + esc(u.name || "Traveler") + "</h2><p class=\"muted\">" + esc(u.guest ? "Guest — create an account to keep your trips under your name" : u.email || "") + "</p>" +
       (u.photo ? '<button class="link-btn link-btn--inline" type="button" data-action="avatar-remove">Remove photo</button>' : '<p class="fine">Tap the picture to upload a profile photo.</p>') + "</div>" +
       '<button class="icon-btn" type="button" data-action="edit-name" aria-label="Edit name">' + icon("edit") + "</button></div>" +
+      (T.engage ? T.engage.profileCard() : "") +
       '<div class="card"><h3 class="h3">' + icon("id") + " Fare discount</h3>" + travelerSeg(u.type || "regular", "profile-type") + '<p class="fine" id="type-note">' + typeNote(u.type || "regular") + "</p></div>" +
       '<div class="card"><h3 class="h3">' + icon("pin") + " Locations</h3>" +
       '<button class="pick-item" type="button" data-action="change-location">' + icon("locate") + "<span><strong>Current location</strong><small>" + esc(here.label) + "</small></span>" + icon("edit") + "</button>" +
@@ -2080,5 +2091,6 @@
   };
 
   T.views.notfound = function () { mount(pageHead("Not found", { back: true }) + empty("compass", "Wrong turn", "This page doesn't exist.", '<a class="btn btn--primary" href="#/home">Go home</a>')); };
+  T.ui = { mount: mount, pageHead: pageHead, placeRow: placeRow, placeCard: placeCard, photo: photo, catChip: catChip, empty: empty, loader: loader };
   T.actions.back = function () { if (history.length > 1) history.back(); else T.router.go("home"); };
 })();
